@@ -119,7 +119,7 @@ locals {
     set -euxo pipefail
 
     dnf update -y
-    dnf install -y docker
+    dnf install -y docker docker-compose-plugin
     systemctl enable docker
     systemctl start docker
     usermod -aG docker ec2-user
@@ -162,4 +162,3 @@ resource "aws_eip" "ghost" {
   domain   = "vpc"
   instance = aws_instance.ghost.id
 }
-

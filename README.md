@@ -25,12 +25,19 @@ For each environment:
 - GitHub repository secrets/variables:
   - `AWS_ROLE_ARN` (OIDC assumable role for GitHub Actions)
   - `AWS_REGION` (for example `us-east-1`)
+  - `TF_STATE_BUCKET` (S3 bucket for Terraform state)
+  - `TF_STATE_DYNAMODB_TABLE` (DynamoDB lock table)
+  - `TF_STATE_KEY` (optional, default `ghost/terraform.tfstate`)
 
 ## Local usage
 
 ```bash
 cd terraform
-terraform init
+terraform init \
+  -backend-config="bucket=<state-bucket>" \
+  -backend-config="dynamodb_table=<lock-table>" \
+  -backend-config="key=ghost/terraform.tfstate" \
+  -backend-config="region=us-east-1"
 terraform plan
 terraform apply
 ```
@@ -49,9 +56,9 @@ Workflow file: `.github/workflows/terraform.yml`
 
 - Pull requests: `terraform fmt -check`, `terraform validate`, and `terraform plan`
 - Push to `main`: `terraform apply -auto-approve`
+- State is stored in S3 with DynamoDB locking to keep GitHub Actions deployments consistent across runs.
 
 ## Notes
 
 - Ghost is configured with `http://<domain>` by default in this stack.
 - Add TLS (for example with CloudFront/ALB + ACM or reverse proxy) if you want HTTPS end-to-end at infrastructure level.
-
