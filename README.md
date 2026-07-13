@@ -21,12 +21,11 @@ For each environment:
 ## Prerequisites
 
 - AWS account with Route53 hosted zone for `johannessen.co`
-- Terraform >= 1.6
+- Terraform >= 1.10
 - GitHub repository variables (Settings → Secrets and variables → Actions → Variables):
   - `AWS_ROLE_ARN` (OIDC assumable role ARN for GitHub Actions, e.g. `arn:aws:iam::123456789012:role/GitHubActionsRole`)
   - `AWS_REGION` (for example `us-east-1`)
-  - `TF_STATE_BUCKET` (S3 bucket for Terraform state)
-  - `TF_STATE_DYNAMODB_TABLE` (DynamoDB lock table)
+  - `TF_STATE_BUCKET` (S3 bucket for Terraform state; plan and apply are skipped when unset)
   - `TF_STATE_KEY` (optional, default `ghost/terraform.tfstate`)
 
 ## Local usage
@@ -35,7 +34,7 @@ For each environment:
 cd terraform
 terraform init \
   -backend-config="bucket=<state-bucket>" \
-  -backend-config="dynamodb_table=<lock-table>" \
+  -backend-config="use_lockfile=true" \
   -backend-config="key=ghost/terraform.tfstate" \
   -backend-config="region=us-east-1"
 terraform plan
@@ -54,9 +53,9 @@ terraform apply \
 
 Workflow file: `.github/workflows/terraform.yml`
 
-- Pull requests: `terraform fmt -check`, `terraform validate`, and `terraform plan`
-- Push to `main`: `terraform apply -auto-approve`
-- State is stored in S3 with DynamoDB locking to keep GitHub Actions deployments consistent across runs.
+- Pull requests: `terraform fmt -check`, `terraform validate`, and `terraform plan` (plan requires `TF_STATE_BUCKET`)
+- Push to `main`: `terraform apply -auto-approve` (requires `TF_STATE_BUCKET`)
+- State is stored in S3 with S3-native locking (`use_lockfile=true`) to keep GitHub Actions deployments consistent across runs.
 
 ## Notes
 
