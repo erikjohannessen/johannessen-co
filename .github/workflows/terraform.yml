@@ -24,7 +24,6 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
       TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
-      TF_STATE_DYNAMODB_TABLE: ${{ vars.TF_STATE_DYNAMODB_TABLE }}
       TF_STATE_KEY: ${{ vars.TF_STATE_KEY || 'ghost/terraform.tfstate' }}
 
     steps:
@@ -40,13 +39,8 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Terraform Init
-        run: |
-          terraform init \
-            -backend-config="bucket=${TF_STATE_BUCKET}" \
-            -backend-config="dynamodb_table=${TF_STATE_DYNAMODB_TABLE}" \
-            -backend-config="key=${TF_STATE_KEY}" \
-            -backend-config="region=${AWS_REGION}"
+      - name: Terraform Init (no backend)
+        run: terraform init -backend=false
 
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
@@ -54,10 +48,19 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
+      - name: Terraform Init (with backend)
+        if: vars.TF_STATE_BUCKET != ''
+        run: |
+          terraform init \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="use_lockfile=true" \
+            -backend-config="key=${TF_STATE_KEY}" \
+            -backend-config="region=${AWS_REGION}"
+
       - name: Terraform Plan
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && vars.TF_STATE_BUCKET != ''
         run: terraform plan -no-color
 
       - name: Terraform Apply
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.TF_STATE_BUCKET != ''
         run: terraform apply -auto-approve -no-color
