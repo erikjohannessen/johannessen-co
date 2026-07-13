@@ -22,8 +22,8 @@ For each environment:
 
 - AWS account with Route53 hosted zone for `johannessen.co`
 - Terraform >= 1.6
-- GitHub repository secrets/variables:
-  - `AWS_ROLE_ARN` (OIDC assumable role for GitHub Actions)
+- GitHub repository variables (Settings → Secrets and variables → Actions → Variables):
+  - `AWS_ROLE_ARN` (OIDC assumable role ARN for GitHub Actions, e.g. `arn:aws:iam::123456789012:role/GitHubActionsRole`)
   - `AWS_REGION` (for example `us-east-1`)
   - `TF_STATE_BUCKET` (S3 bucket for Terraform state)
   - `TF_STATE_DYNAMODB_TABLE` (DynamoDB lock table)
