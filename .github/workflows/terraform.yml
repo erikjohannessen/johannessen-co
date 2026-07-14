@@ -72,7 +72,7 @@ jobs:
           for url in "http://test.johannessen.co/health" "http://blog.johannessen.co/health"; do
             echo "Checking $url..."
             for i in $(seq 1 10); do
-              status=$(curl -s -L -o /dev/null -w "%{http_code}" --max-time 15 "$url" 2>/dev/null || echo "000")
+              status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$url" 2>/dev/null || echo "000")
               if [ "$status" = "200" ]; then
                 echo "✓ $url returned HTTP 200"
                 break

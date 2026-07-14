@@ -134,12 +134,19 @@ locals {
             proxy_pass http://ghost:2368/;
             proxy_connect_timeout 5s;
             proxy_read_timeout 10s;
+            proxy_intercept_errors on;
+            error_page 301 302 303 307 308 = @ghost_healthy;
             error_page 502 503 504 = @ghost_down;
         }
 
+        location @ghost_healthy {
+            default_type text/plain;
+            return 200 "Ghost is healthy\n";
+        }
+
         location @ghost_down {
+            default_type text/plain;
             return 503 "Ghost is not available\n";
-            add_header Content-Type text/plain;
         }
 
         location / {
