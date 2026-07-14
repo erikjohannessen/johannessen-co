@@ -125,13 +125,38 @@ locals {
     usermod -aG docker ec2-user
 
     mkdir -p /opt/ghost
+    cat > /opt/ghost/nginx.conf <<'NGINXCONF'
+    server {
+        listen 80;
+
+        location /health {
+            access_log off;
+            proxy_pass http://ghost:2368/;
+            proxy_connect_timeout 5s;
+            proxy_read_timeout 10s;
+            error_page 502 503 504 = @ghost_down;
+        }
+
+        location @ghost_down {
+            return 503 "Ghost is not available\n";
+            add_header Content-Type text/plain;
+        }
+
+        location / {
+            proxy_pass http://ghost:2368;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+    NGINXCONF
+
     cat > /opt/ghost/docker-compose.yml <<'COMPOSE'
     services:
       ghost:
         image: ghost:5-alpine
         restart: always
-        ports:
-          - "80:2368"
         environment:
           url: http://${var.domain_name}
           database__client: mysql
@@ -139,6 +164,15 @@ locals {
           database__connection__user: ghostuser
           database__connection__password: ${random_password.db_password.result}
           database__connection__database: ghost
+      nginx:
+        image: nginx:alpine
+        restart: always
+        ports:
+          - "80:80"
+        volumes:
+          - /opt/ghost/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+        depends_on:
+          - ghost
     COMPOSE
 
     /usr/bin/docker compose -f /opt/ghost/docker-compose.yml up -d
