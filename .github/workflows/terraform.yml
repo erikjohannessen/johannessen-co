@@ -76,7 +76,7 @@ jobs:
             for i in $(seq 1 $max_attempts); do
               status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "$url")
               curl_exit=$?
-              [ "$curl_exit" -ne 0 ] && echo "curl failed (exit $curl_exit: 28=timeout, 6=DNS error, 7=connection refused)"
+              [ "$curl_exit" -ne 0 ] && echo "curl failed with exit code $curl_exit"
               if [ "$status" = "200" ]; then
                 echo "✓ $url returned HTTP 200"
                 break
