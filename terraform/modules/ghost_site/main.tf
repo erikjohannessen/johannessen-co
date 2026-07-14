@@ -114,80 +114,14 @@ resource "aws_iam_instance_profile" "ssm" {
 }
 
 locals {
-  user_data = <<-EOT
-    #!/bin/bash
-    set -euxo pipefail
-
-    dnf update -y
-    dnf install -y docker docker-compose-plugin
-    systemctl enable docker
-    systemctl start docker
-    usermod -aG docker ec2-user
-
-    mkdir -p /opt/ghost
-    cat > /opt/ghost/nginx.conf <<'NGINXCONF'
-    server {
-        listen 80;
-
-        location /health {
-            access_log off;
-            # Trailing slash forwards to Ghost root (/), not the /health path,
-            # because Ghost has no /health endpoint of its own.
-            proxy_pass http://ghost:2368/;
-            proxy_connect_timeout 5s;
-            proxy_read_timeout 10s;
-            proxy_intercept_errors on;
-            # Treat 3xx as healthy: a fresh Ghost install redirects to its setup
-            # wizard, which still means the container is up and running.
-            error_page 301 302 303 307 308 = @ghost_healthy;
-            error_page 502 503 504 = @ghost_down;
-        }
-
-        location @ghost_healthy {
-            default_type text/plain;
-            return 200 "Ghost is healthy\n";
-        }
-
-        location @ghost_down {
-            default_type text/plain;
-            return 503 "Ghost is not available\n";
-        }
-
-        location / {
-            proxy_pass http://ghost:2368;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-        }
-    }
-    NGINXCONF
-
-    cat > /opt/ghost/docker-compose.yml <<'COMPOSE'
-    services:
-      ghost:
-        image: ghost:5-alpine
-        restart: always
-        environment:
-          url: http://${var.domain_name}
-          database__client: mysql
-          database__connection__host: ${aws_db_instance.ghost.address}
-          database__connection__user: ghostuser
-          database__connection__password: ${random_password.db_password.result}
-          database__connection__database: ghost
-      nginx:
-        image: nginx:alpine
-        restart: always
-        ports:
-          - "80:80"
-        volumes:
-          - /opt/ghost/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-        depends_on:
-          - ghost
-    COMPOSE
-
-    /usr/bin/docker compose -f /opt/ghost/docker-compose.yml up -d
-  EOT
+  user_data = templatefile("${path.module}/templates/user_data.sh.tftpl", {
+    nginx_conf      = file("${path.module}/templates/nginx.conf")
+    compose_content = templatefile("${path.module}/templates/docker-compose.yml.tftpl", {
+      domain_name = var.domain_name
+      db_address  = aws_db_instance.ghost.address
+      db_password = random_password.db_password.result
+    })
+  })
 }
 
 resource "aws_instance" "ghost" {
