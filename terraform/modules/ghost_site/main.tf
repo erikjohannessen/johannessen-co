@@ -131,10 +131,14 @@ locals {
 
         location /health {
             access_log off;
+            # Trailing slash forwards to Ghost root (/), not the /health path,
+            # because Ghost has no /health endpoint of its own.
             proxy_pass http://ghost:2368/;
             proxy_connect_timeout 5s;
             proxy_read_timeout 10s;
             proxy_intercept_errors on;
+            # Treat 3xx as healthy: a fresh Ghost install redirects to its setup
+            # wizard, which still means the container is up and running.
             error_page 301 302 303 307 308 = @ghost_healthy;
             error_page 502 503 504 = @ghost_down;
         }
