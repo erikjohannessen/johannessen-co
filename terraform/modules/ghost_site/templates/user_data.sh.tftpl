@@ -10,9 +10,11 @@ usermod -aG docker ec2-user
 mkdir -p /opt/ghost
 
 cat > /opt/ghost/nginx.conf <<'NGINXCONF'
-${nginx_conf}NGINXCONF
+${nginx_conf}
+NGINXCONF
 
 cat > /opt/ghost/docker-compose.yml <<'COMPOSE'
-${compose_content}COMPOSE
+${compose_content}
+COMPOSE
 
 /usr/bin/docker compose -f /opt/ghost/docker-compose.yml up -d
