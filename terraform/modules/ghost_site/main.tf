@@ -114,35 +114,14 @@ resource "aws_iam_instance_profile" "ssm" {
 }
 
 locals {
-  user_data = <<-EOT
-    #!/bin/bash
-    set -euxo pipefail
-
-    dnf update -y
-    dnf install -y docker docker-compose-plugin
-    systemctl enable docker
-    systemctl start docker
-    usermod -aG docker ec2-user
-
-    mkdir -p /opt/ghost
-    cat > /opt/ghost/docker-compose.yml <<'COMPOSE'
-    services:
-      ghost:
-        image: ghost:5-alpine
-        restart: always
-        ports:
-          - "80:2368"
-        environment:
-          url: http://${var.domain_name}
-          database__client: mysql
-          database__connection__host: ${aws_db_instance.ghost.address}
-          database__connection__user: ghostuser
-          database__connection__password: ${random_password.db_password.result}
-          database__connection__database: ghost
-    COMPOSE
-
-    /usr/bin/docker compose -f /opt/ghost/docker-compose.yml up -d
-  EOT
+  user_data = templatefile("${path.module}/templates/user_data.sh.tftpl", {
+    nginx_conf = file("${path.module}/templates/nginx.conf")
+    compose_content = templatefile("${path.module}/templates/docker-compose.yml.tftpl", {
+      domain_name = var.domain_name
+      db_address  = aws_db_instance.ghost.address
+      db_password = random_password.db_password.result
+    })
+  })
 }
 
 resource "aws_instance" "ghost" {

@@ -65,3 +65,27 @@ jobs:
       - name: Terraform Apply
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.TF_STATE_BUCKET != ''
         run: terraform apply -auto-approve -no-color
+
+      - name: Health Check
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.TF_STATE_BUCKET != ''
+        run: |
+          max_attempts=10
+          retry_sleep=20
+          for url in "http://test.johannessen.co/health" "http://blog.johannessen.co/health"; do
+            echo "Checking $url..."
+            for i in $(seq 1 $max_attempts); do
+              status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "$url")
+              curl_exit=$?
+              [ "$curl_exit" -ne 0 ] && echo "curl failed with exit code $curl_exit"
+              if [ "$status" = "200" ]; then
+                echo "✓ $url returned HTTP 200"
+                break
+              fi
+              if [ "$i" -eq "$max_attempts" ]; then
+                echo "✗ $url did not return HTTP 200 after $max_attempts attempts (last status: $status)"
+                exit 1
+              fi
+              echo "Attempt $i: got HTTP $status, retrying in ${retry_sleep}s..."
+              sleep "$retry_sleep"
+            done
+          done
