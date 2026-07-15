@@ -135,7 +135,7 @@ jobs:
             for i in $(seq 1 $max_attempts); do
               status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 -H "Host: $host" "$url")
               curl_exit=$?
-              [ "$curl_exit" -ne 0 ] && echo "curl failed with exit code $curl_exit"
+              [ "$curl_exit" -ne 0 ] && echo "curl failed (exit $curl_exit) for $url (Host: $host)"
               if [ "$status" = "200" ]; then
                 echo "✓ $url (Host: $host) returned HTTP 200"
                 break
@@ -183,7 +183,7 @@ jobs:
               --instance-id "$instance_id" \
               --document-name "AWS-RunShellScript" \
               --parameters 'commands=["docker compose -f /opt/ghost/docker-compose.yml logs --tail=50 2>&1"]' \
-              --output text --query 'Command.CommandId' 2>/dev/null) || { echo "SSM unavailable for $instance_id"; continue; }
+              --output text --query 'Command.CommandId' 2>/dev/null) || { echo "SSM send-command failed for $instance_id (check IAM permissions and SSM agent status)"; continue; }
             aws ssm wait command-executed \
               --command-id "$cmd_id" \
               --instance-id "$instance_id" 2>/dev/null || true
