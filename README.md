@@ -27,6 +27,8 @@ For each environment:
   - `AWS_REGION` (for example `us-east-1`)
   - `TF_STATE_BUCKET` (S3 bucket for Terraform state; plan and apply are skipped when unset)
   - `TF_STATE_KEY` (optional, default `ghost/terraform.tfstate`)
+- GitHub repository secret (Settings → Secrets and variables → Actions → Secrets):
+  - `DB_PASSWORD` (MySQL password used by both Ghost environments)
 
 ## Local usage
 
@@ -37,6 +39,7 @@ terraform init \
   -backend-config="use_lockfile=true" \
   -backend-config="key=ghost/terraform.tfstate" \
   -backend-config="region=us-east-1"
+export TF_VAR_db_password="<db-password>"
 terraform plan
 terraform apply
 ```
@@ -51,7 +54,10 @@ terraform apply \
 
 ## GitHub Actions deployment
 
-Workflow file: `.github/workflows/terraform.yml`
+Workflow files:
+
+- `.github/workflows/pull-request.yml`
+- `.github/workflows/push.yml`
 
 - Pull requests: `terraform fmt -check`, `terraform validate`, and `terraform plan` (plan requires `TF_STATE_BUCKET`)
 - Push to `main`: `terraform apply -auto-approve` (requires `TF_STATE_BUCKET`)

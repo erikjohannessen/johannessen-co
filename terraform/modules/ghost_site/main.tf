@@ -19,11 +19,6 @@ data "aws_ami" "amazon_linux_2023" {
   }
 }
 
-resource "random_password" "db_password" {
-  length  = 24
-  special = false
-}
-
 resource "aws_security_group" "ghost" {
   name_prefix = "${var.name_prefix}-ghost-"
   description = "Ghost web security group"
@@ -79,7 +74,7 @@ resource "aws_db_instance" "ghost" {
   engine_version          = "8.0"
   instance_class          = "db.t4g.micro"
   username                = "ghostuser"
-  password                = random_password.db_password.result
+  password                = var.db_password
   skip_final_snapshot     = true
   deletion_protection     = false
   backup_retention_period = 7
@@ -120,7 +115,7 @@ locals {
     compose_content = templatefile("${path.module}/templates/docker-compose.yml.tftpl", {
       domain_name = var.domain_name
       db_address  = aws_db_instance.ghost.address
-      db_password = random_password.db_password.result
+      db_password = var.db_password
     })
   })
 }

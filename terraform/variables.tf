@@ -15,3 +15,9 @@ variable "ghost_instance_type" {
   default     = "t3.small"
 }
 
+variable "db_password" {
+  description = "MySQL password for Ghost databases."
+  type        = string
+  sensitive   = true
+}
+

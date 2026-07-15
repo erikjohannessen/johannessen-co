@@ -9,6 +9,7 @@ module "ghost_test" {
   name_prefix   = "ghost-test"
   domain_name   = "test.johannessen.co"
   instance_type = var.ghost_instance_type
+  db_password   = var.db_password
 }
 
 module "ghost_prod" {
@@ -17,6 +18,7 @@ module "ghost_prod" {
   name_prefix   = "ghost-prod"
   domain_name   = "blog.johannessen.co"
   instance_type = var.ghost_instance_type
+  db_password   = var.db_password
 }
 
 resource "aws_route53_record" "ghost_test" {
