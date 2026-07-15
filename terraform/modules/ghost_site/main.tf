@@ -117,6 +117,7 @@ locals {
   user_data = templatefile("${path.module}/templates/user_data.sh.tftpl", {
     nginx_conf     = file("${path.module}/templates/nginx.conf")
     healthcheck_js = file("${path.module}/templates/healthcheck.js")
+    db_address     = aws_db_instance.ghost.address
     compose_content = templatefile("${path.module}/templates/docker-compose.yml.tftpl", {
       domain_name = var.domain_name
       db_address  = aws_db_instance.ghost.address
