@@ -115,7 +115,8 @@ resource "aws_iam_instance_profile" "ssm" {
 
 locals {
   user_data = templatefile("${path.module}/templates/user_data.sh.tftpl", {
-    nginx_conf = file("${path.module}/templates/nginx.conf")
+    nginx_conf     = file("${path.module}/templates/nginx.conf")
+    healthcheck_js = file("${path.module}/templates/healthcheck.js")
     compose_content = templatefile("${path.module}/templates/docker-compose.yml.tftpl", {
       domain_name = var.domain_name
       db_address  = aws_db_instance.ghost.address
@@ -134,6 +135,15 @@ resource "aws_instance" "ghost" {
 
   tags = {
     Name = "${var.name_prefix}-ec2"
+  }
+
+  lifecycle {
+    # Prevent unexpected instance replacement when Amazon publishes a new AMI.
+    # To upgrade the AMI, remove this ignore rule, apply, then re-add it.
+    ignore_changes = [ami]
+    # Create a replacement instance before destroying the old one to minimise
+    # the downtime window during intentional instance replacements.
+    create_before_destroy = true
   }
 }
 

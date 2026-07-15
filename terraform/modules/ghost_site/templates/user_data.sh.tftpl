@@ -13,6 +13,10 @@ cat > /opt/ghost/nginx.conf <<'NGINXCONF'
 ${nginx_conf}
 NGINXCONF
 
+cat > /opt/ghost/healthcheck.js <<'HEALTHCHECK'
+${healthcheck_js}
+HEALTHCHECK
+
 cat > /opt/ghost/docker-compose.yml <<'COMPOSE'
 ${compose_content}
 COMPOSE

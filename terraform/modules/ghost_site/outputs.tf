@@ -3,6 +3,16 @@ output "elastic_ip" {
   value       = aws_eip.ghost.public_ip
 }
 
+output "instance_id" {
+  description = "EC2 instance ID."
+  value       = aws_instance.ghost.id
+}
+
+output "db_instance_identifier" {
+  description = "RDS instance identifier."
+  value       = aws_db_instance.ghost.identifier
+}
+
 output "database_password" {
   description = "Generated MySQL password."
   value       = random_password.db_password.result

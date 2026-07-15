@@ -14,6 +14,7 @@ on:
 permissions:
   id-token: write
   contents: read
+  pull-requests: write
 
 jobs:
   terraform:
@@ -60,32 +61,136 @@ jobs:
 
       - name: Terraform Plan
         if: github.event_name == 'pull_request' && vars.TF_STATE_BUCKET != ''
-        run: terraform plan -no-color
+        id: plan
+        continue-on-error: true
+        run: terraform plan -out=tfplan -no-color 2>&1 | tee "$GITHUB_WORKSPACE/plan.txt"; exit ${PIPESTATUS[0]}
+
+      - name: Post Plan to PR
+        if: always() && github.event_name == 'pull_request' && vars.TF_STATE_BUCKET != ''
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const MAX_PLAN_LENGTH = 60000;
+            const plan = fs.readFileSync(path.join(process.env.GITHUB_WORKSPACE, 'plan.txt'), 'utf8');
+            const truncated = plan.length > MAX_PLAN_LENGTH ? plan.slice(0, MAX_PLAN_LENGTH) + '\n... (truncated)' : plan;
+            const willBeReplaced = plan.includes('must be replaced') || plan.includes('will be replaced');
+            const outcome = '${{ steps.plan.outcome }}';
+            const header = outcome === 'failure'
+              ? '## ❌ Terraform Plan — plan failed'
+              : willBeReplaced
+                ? '## ⚠️ Terraform Plan — instance replacement detected (expect downtime)'
+                : '## ✅ Terraform Plan';
+            const body = `${header}\n\n<details><summary>Plan output</summary>\n\n\`\`\`\n${truncated}\n\`\`\`\n</details>`;
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
+      - name: Fail if plan failed
+        if: always() && github.event_name == 'pull_request' && vars.TF_STATE_BUCKET != '' && steps.plan.outcome == 'failure'
+        run: exit 1
 
       - name: Terraform Apply
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.TF_STATE_BUCKET != ''
-        run: terraform apply -auto-approve -no-color
+        run: terraform apply -auto-approve -no-color tfplan
+
+      - name: Wait for EC2 instances
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.TF_STATE_BUCKET != ''
+        run: |
+          test_instance_id=$(terraform output -raw test_instance_id)
+          prod_instance_id=$(terraform output -raw prod_instance_id)
+          echo "Waiting for EC2 instance status checks: $test_instance_id, $prod_instance_id"
+          aws ec2 wait instance-status-ok --instance-ids "$test_instance_id" "$prod_instance_id"
+
+      - name: Wait for RDS instances
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.TF_STATE_BUCKET != ''
+        run: |
+          test_db_id=$(terraform output -raw test_db_instance_identifier)
+          prod_db_id=$(terraform output -raw prod_db_instance_identifier)
+          echo "Waiting for RDS instance: $test_db_id"
+          aws rds wait db-instance-available --db-instance-identifier "$test_db_id"
+          echo "Waiting for RDS instance: $prod_db_id"
+          aws rds wait db-instance-available --db-instance-identifier "$prod_db_id"
 
       - name: Health Check
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.TF_STATE_BUCKET != ''
         run: |
-          max_attempts=10
-          retry_sleep=20
-          for url in "http://test.johannessen.co/health" "http://blog.johannessen.co/health"; do
-            echo "Checking $url..."
+          max_attempts=30
+          retry_sleep=30
+          test_ip=$(terraform output -raw test_elastic_ip)
+          prod_ip=$(terraform output -raw prod_elastic_ip)
+          pairs=(
+            "http://$test_ip/health|test.johannessen.co"
+            "http://$prod_ip/health|blog.johannessen.co"
+          )
+          for pair in "${pairs[@]}"; do
+            url="${pair%%|*}"
+            host="${pair##*|}"
+            echo "Checking $url (Host: $host)..."
             for i in $(seq 1 $max_attempts); do
-              status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "$url")
+              status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 -H "Host: $host" "$url")
               curl_exit=$?
-              [ "$curl_exit" -ne 0 ] && echo "curl failed with exit code $curl_exit"
+              [ "$curl_exit" -ne 0 ] && echo "curl failed (exit $curl_exit) for $url (Host: $host)"
               if [ "$status" = "200" ]; then
-                echo "✓ $url returned HTTP 200"
+                echo "✓ $url (Host: $host) returned HTTP 200"
                 break
               fi
               if [ "$i" -eq "$max_attempts" ]; then
-                echo "✗ $url did not return HTTP 200 after $max_attempts attempts (last status: $status)"
+                echo "✗ $url (Host: $host) did not return HTTP 200 after $max_attempts attempts (last status: $status)"
                 exit 1
               fi
               echo "Attempt $i: got HTTP $status, retrying in ${retry_sleep}s..."
               sleep "$retry_sleep"
             done
           done
+
+      - name: Smoke Test
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.TF_STATE_BUCKET != ''
+        run: |
+          test_ip=$(terraform output -raw test_elastic_ip)
+          prod_ip=$(terraform output -raw prod_elastic_ip)
+          pairs=(
+            "$test_ip|test.johannessen.co"
+            "$prod_ip|blog.johannessen.co"
+          )
+          for pair in "${pairs[@]}"; do
+            ip="${pair%%|*}"
+            host="${pair##*|}"
+            echo "Smoke testing http://$host (via $ip)..."
+            body=$(curl -sL --max-time 20 -H "Host: $host" "http://$ip/")
+            if echo "$body" | grep -qi "<html"; then
+              echo "✓ $host returned HTML content"
+            else
+              echo "✗ $host did not return HTML content"
+              exit 1
+            fi
+          done
+
+      - name: Collect diagnostics on failure
+        if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.TF_STATE_BUCKET != ''
+        run: |
+          test_instance_id=$(terraform output -raw test_instance_id 2>/dev/null) || true
+          prod_instance_id=$(terraform output -raw prod_instance_id 2>/dev/null) || true
+          for instance_id in "$test_instance_id" "$prod_instance_id"; do
+            [ -z "$instance_id" ] && continue
+            echo "=== Docker Compose logs for instance $instance_id ==="
+            cmd_id=$(aws ssm send-command \
+              --instance-id "$instance_id" \
+              --document-name "AWS-RunShellScript" \
+              --parameters 'commands=["docker compose -f /opt/ghost/docker-compose.yml logs --tail=50 2>&1"]' \
+              --output text --query 'Command.CommandId' 2>/dev/null) || { echo "SSM send-command failed for $instance_id (check IAM permissions and SSM agent status)"; continue; }
+            aws ssm wait command-executed \
+              --command-id "$cmd_id" \
+              --instance-id "$instance_id" 2>/dev/null || true
+            aws ssm get-command-invocation \
+              --command-id "$cmd_id" \
+              --instance-id "$instance_id" \
+              --query 'StandardOutputContent' \
+              --output text 2>/dev/null || echo "Could not retrieve SSM output for $instance_id"
+          done
+
