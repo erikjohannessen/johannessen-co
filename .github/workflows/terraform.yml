@@ -63,7 +63,7 @@ jobs:
         if: github.event_name == 'pull_request' && vars.TF_STATE_BUCKET != ''
         id: plan
         continue-on-error: true
-        run: terraform plan -no-color 2>&1 | tee "$GITHUB_WORKSPACE/plan.txt"; exit ${PIPESTATUS[0]}
+        run: terraform plan -out=tfplan -no-color 2>&1 | tee "$GITHUB_WORKSPACE/plan.txt"; exit ${PIPESTATUS[0]}
 
       - name: Post Plan to PR
         if: always() && github.event_name == 'pull_request' && vars.TF_STATE_BUCKET != ''
@@ -94,10 +94,6 @@ jobs:
       - name: Fail if plan failed
         if: always() && github.event_name == 'pull_request' && vars.TF_STATE_BUCKET != '' && steps.plan.outcome == 'failure'
         run: exit 1
-
-      - name: Terraform Plan (apply)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.TF_STATE_BUCKET != ''
-        run: terraform plan -out=tfplan -no-color
 
       - name: Terraform Apply
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.TF_STATE_BUCKET != ''
