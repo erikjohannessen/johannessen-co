@@ -39,13 +39,13 @@ output "prod_db_instance_identifier" {
 }
 
 output "test_db_password" {
-  description = "Generated test database password."
+  description = "Configured test database password."
   value       = module.ghost_test.database_password
   sensitive   = true
 }
 
 output "prod_db_password" {
-  description = "Generated production database password."
+  description = "Configured production database password."
   value       = module.ghost_prod.database_password
   sensitive   = true
 }

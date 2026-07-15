@@ -13,3 +13,9 @@ variable "instance_type" {
   type        = string
 }
 
+variable "db_password" {
+  description = "MySQL password for Ghost database."
+  type        = string
+  sensitive   = true
+}
+

@@ -14,8 +14,8 @@ output "db_instance_identifier" {
 }
 
 output "database_password" {
-  description = "Generated MySQL password."
-  value       = random_password.db_password.result
+  description = "Configured MySQL password."
+  value       = var.db_password
   sensitive   = true
 }
 

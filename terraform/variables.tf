@@ -15,3 +15,14 @@ variable "ghost_instance_type" {
   default     = "t3.small"
 }
 
+variable "db_password" {
+  description = "MySQL password for Ghost databases."
+  type        = string
+  sensitive   = true
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9]{8,41}$", var.db_password))
+    error_message = "db_password must be 8-41 alphanumeric characters."
+  }
+}
+
