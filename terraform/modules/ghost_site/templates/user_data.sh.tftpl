@@ -21,4 +21,21 @@ cat > /opt/ghost/docker-compose.yml <<'COMPOSE'
 ${compose_content}
 COMPOSE
 
+# Wait for the database to be reachable before starting containers so that
+# Ghost can connect on the first attempt and become healthy without cycling.
+echo "Waiting for database at ${db_address}:3306..."
+db_ready=false
+for i in $(seq 1 120); do
+  if (exec 3<>/dev/tcp/${db_address}/3306; exec 3>&-) 2>/dev/null; then
+    db_ready=true
+    echo "Database is reachable (attempt $i)."
+    break
+  fi
+  echo "Database not reachable yet (attempt $i/120), retrying in 5s..."
+  sleep 5
+done
+if [ "$db_ready" = false ]; then
+  echo "Timed out waiting for database after 120 attempts. Proceeding anyway."
+fi
+
 /usr/bin/docker compose -f /opt/ghost/docker-compose.yml up -d
