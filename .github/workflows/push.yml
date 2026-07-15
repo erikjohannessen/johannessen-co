@@ -92,8 +92,10 @@ jobs:
             host="${pair##*|}"
             echo "Checking $url (Host: $host)..."
             for i in $(seq 1 $max_attempts); do
+              set +e
               status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 -H "Host: $host" "$url")
               curl_exit=$?
+              set -e
               [ "$curl_exit" -ne 0 ] && echo "curl failed (exit $curl_exit) for $url (Host: $host)"
               if [ "$status" = "200" ]; then
                 echo "✓ $url (Host: $host) returned HTTP 200"
@@ -151,4 +153,3 @@ jobs:
               --query 'StandardOutputContent' \
               --output text 2>/dev/null || echo "Could not retrieve SSM output for $instance_id"
           done
-
