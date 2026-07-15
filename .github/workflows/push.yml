@@ -1,20 +1,15 @@
-name: Terraform
+name: Push
 
 on:
-  pull_request:
-    paths:
-      - "terraform/**"
-      - ".github/workflows/terraform.yml"
   push:
     branches: ["main"]
     paths:
       - "terraform/**"
-      - ".github/workflows/terraform.yml"
+      - ".github/workflows/**"
 
 permissions:
   id-token: write
   contents: read
-  pull-requests: write
 
 jobs:
   terraform:
@@ -32,6 +27,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Fail if terraform state bucket is not set
+        if: vars.TF_STATE_BUCKET == ''
+        run: exit 1
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -41,17 +40,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Terraform Init (no backend)
-        run: terraform init -backend=false
-
-      - name: Terraform Format Check
-        run: terraform fmt -check -recursive
-
-      - name: Terraform Validate
-        run: terraform validate
-
       - name: Terraform Init (with backend)
-        if: vars.TF_STATE_BUCKET != ''
         run: |
           terraform init \
             -backend-config="bucket=${TF_STATE_BUCKET}" \
@@ -59,48 +48,20 @@ jobs:
             -backend-config="key=${TF_STATE_KEY}" \
             -backend-config="region=${AWS_REGION}"
 
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Validate
+        run: terraform validate
+
       - name: Terraform Plan
-        if: github.event_name == 'pull_request' && vars.TF_STATE_BUCKET != ''
         id: plan
-        continue-on-error: true
         run: terraform plan -out=tfplan -no-color 2>&1 | tee "$GITHUB_WORKSPACE/plan.txt"; exit ${PIPESTATUS[0]}
 
-      - name: Post Plan to PR
-        if: always() && github.event_name == 'pull_request' && vars.TF_STATE_BUCKET != ''
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-            const path = require('path');
-            const MAX_PLAN_LENGTH = 60000;
-            const plan = fs.readFileSync(path.join(process.env.GITHUB_WORKSPACE, 'plan.txt'), 'utf8');
-            const truncated = plan.length > MAX_PLAN_LENGTH ? plan.slice(0, MAX_PLAN_LENGTH) + '\n... (truncated)' : plan;
-            const willBeReplaced = plan.includes('must be replaced') || plan.includes('will be replaced');
-            const outcome = '${{ steps.plan.outcome }}';
-            const header = outcome === 'failure'
-              ? '## ❌ Terraform Plan — plan failed'
-              : willBeReplaced
-                ? '## ⚠️ Terraform Plan — instance replacement detected (expect downtime)'
-                : '## ✅ Terraform Plan';
-            const body = `${header}\n\n<details><summary>Plan output</summary>\n\n\`\`\`\n${truncated}\n\`\`\`\n</details>`;
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body
-            });
-
-      - name: Fail if plan failed
-        if: always() && github.event_name == 'pull_request' && vars.TF_STATE_BUCKET != '' && steps.plan.outcome == 'failure'
-        run: exit 1
-
       - name: Terraform Apply
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.TF_STATE_BUCKET != ''
         run: terraform apply -auto-approve -no-color tfplan
 
       - name: Wait for EC2 instances
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.TF_STATE_BUCKET != ''
         run: |
           test_instance_id=$(terraform output -raw test_instance_id)
           prod_instance_id=$(terraform output -raw prod_instance_id)
@@ -108,7 +69,6 @@ jobs:
           aws ec2 wait instance-status-ok --instance-ids "$test_instance_id" "$prod_instance_id"
 
       - name: Wait for RDS instances
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.TF_STATE_BUCKET != ''
         run: |
           test_db_id=$(terraform output -raw test_db_instance_identifier)
           prod_db_id=$(terraform output -raw prod_db_instance_identifier)
@@ -118,7 +78,6 @@ jobs:
           aws rds wait db-instance-available --db-instance-identifier "$prod_db_id"
 
       - name: Health Check
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.TF_STATE_BUCKET != ''
         run: |
           max_attempts=30
           retry_sleep=30
@@ -150,7 +109,6 @@ jobs:
           done
 
       - name: Smoke Test
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.TF_STATE_BUCKET != ''
         run: |
           test_ip=$(terraform output -raw test_elastic_ip)
           prod_ip=$(terraform output -raw prod_elastic_ip)
@@ -172,7 +130,7 @@ jobs:
           done
 
       - name: Collect diagnostics on failure
-        if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.TF_STATE_BUCKET != ''
+        if: failure()
         run: |
           test_instance_id=$(terraform output -raw test_instance_id 2>/dev/null) || true
           prod_instance_id=$(terraform output -raw prod_instance_id 2>/dev/null) || true
