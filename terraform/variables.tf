@@ -37,3 +37,9 @@ variable "ssh_allowed_ip" {
   }
 }
 
+variable "key_name" {
+  description = "EC2 key pair name for SSH access to Ghost instances. Leave null to disable key-based SSH login."
+  type        = string
+  default     = null
+}
+

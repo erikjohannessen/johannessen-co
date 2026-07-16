@@ -11,6 +11,7 @@ module "ghost_test" {
   instance_type  = var.ghost_instance_type
   db_password    = var.db_password
   ssh_allowed_ip = var.ssh_allowed_ip
+  key_name       = var.key_name
 }
 
 module "ghost_prod" {
@@ -21,6 +22,7 @@ module "ghost_prod" {
   instance_type  = var.ghost_instance_type
   db_password    = var.db_password
   ssh_allowed_ip = var.ssh_allowed_ip
+  key_name       = var.key_name
 }
 
 resource "aws_route53_record" "ghost_test" {

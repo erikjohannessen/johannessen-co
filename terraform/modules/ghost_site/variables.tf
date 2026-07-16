@@ -24,3 +24,9 @@ variable "ssh_allowed_ip" {
   type        = string
 }
 
+variable "key_name" {
+  description = "EC2 key pair name to use for SSH access. Leave null to disable key-based SSH login."
+  type        = string
+  default     = null
+}
+

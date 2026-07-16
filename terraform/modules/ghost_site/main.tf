@@ -156,6 +156,7 @@ resource "aws_instance" "ghost" {
   subnet_id              = data.aws_subnets.default.ids[0]
   vpc_security_group_ids = [aws_security_group.ghost.id, aws_security_group.ghostssh.id]
   iam_instance_profile   = aws_iam_instance_profile.ssm.name
+  key_name               = var.key_name
   user_data              = local.user_data
 
   tags = {
