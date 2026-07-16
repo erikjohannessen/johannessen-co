@@ -32,6 +32,35 @@ resource "aws_security_group" "ghost" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    description = "HTTPS"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "ghostssh" {
+  name_prefix = "${var.name_prefix}-ghost-ssh-"
+  description = "Ghost ssh security group"
+  vpc_id      = data.aws_vpc.default.id
+
+  ingress {
+    description = "SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["${var.ssh_allowed_ip}/32"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -125,7 +154,7 @@ resource "aws_instance" "ghost" {
   ami                    = data.aws_ami.amazon_linux_2023.id
   instance_type          = var.instance_type
   subnet_id              = data.aws_subnets.default.ids[0]
-  vpc_security_group_ids = [aws_security_group.ghost.id]
+  vpc_security_group_ids = [aws_security_group.ghost.id, aws_security_group.ghostssh.id]
   iam_instance_profile   = aws_iam_instance_profile.ssm.name
   user_data              = local.user_data
 

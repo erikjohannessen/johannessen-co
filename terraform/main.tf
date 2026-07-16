@@ -6,19 +6,21 @@ data "aws_route53_zone" "primary" {
 module "ghost_test" {
   source = "./modules/ghost_site"
 
-  name_prefix   = "ghost-test"
-  domain_name   = "test.johannessen.co"
-  instance_type = var.ghost_instance_type
-  db_password   = var.db_password
+  name_prefix    = "ghost-test"
+  domain_name    = "test.johannessen.co"
+  instance_type  = var.ghost_instance_type
+  db_password    = var.db_password
+  ssh_allowed_ip = var.ssh_allowed_ip
 }
 
 module "ghost_prod" {
   source = "./modules/ghost_site"
 
-  name_prefix   = "ghost-prod"
-  domain_name   = "blog.johannessen.co"
-  instance_type = var.ghost_instance_type
-  db_password   = var.db_password
+  name_prefix    = "ghost-prod"
+  domain_name    = "blog.johannessen.co"
+  instance_type  = var.ghost_instance_type
+  db_password    = var.db_password
+  ssh_allowed_ip = var.ssh_allowed_ip
 }
 
 resource "aws_route53_record" "ghost_test" {

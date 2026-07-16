@@ -19,3 +19,8 @@ variable "db_password" {
   sensitive   = true
 }
 
+variable "ssh_allowed_ip" {
+  description = "IP Address that is allowed to SSH into Ghost"
+  type        = string
+}
+

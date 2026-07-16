@@ -26,3 +26,9 @@ variable "db_password" {
   }
 }
 
+variable "ssh_allowed_ip" {
+  description = "IP Address that is allowed to SSH into Ghost"
+  type        = string
+  default     = "127.0.0.1"
+}
+
