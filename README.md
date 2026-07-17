@@ -11,12 +11,13 @@ Both environments are managed with Terraform and deployed through GitHub Actions
 
 For each environment:
 
-- EC2 instance (Amazon Linux 2023) running Ghost in Docker
+- ECS Fargate service running Ghost
+- Application Load Balancer (ALB)
+- ACM certificate validated via Route53 DNS
 - RDS MySQL database
 - Security groups and networking in your default VPC
-- Elastic IP for stable DNS
 - Route53 `A` record
-- IAM role/profile for AWS Systems Manager access
+- IAM roles for ECS task execution
 
 ## Prerequisites
 
@@ -63,7 +64,40 @@ Workflow files:
 - Push to `main`: `terraform apply -auto-approve` (requires `TF_STATE_BUCKET`)
 - State is stored in S3 with S3-native locking (`use_lockfile=true`) to keep GitHub Actions deployments consistent across runs.
 
+## GitHubActions Role Permissions
+
+The AWS role assumed by GitHub Actions must be able to create and manage ECS, ALB, ACM, RDS, Route53, IAM roles for task execution, CloudWatch logs, and Terraform state in S3.
+
+Minimum service-level actions to include:
+
+- `ecs:*`
+- `elasticloadbalancing:*`
+- `acm:*`
+- `ec2:*` (required for security groups, subnets/VPC discovery, ENIs for Fargate, and load balancer networking)
+- `rds:*`
+- `route53:*`
+- `logs:*`
+- `iam:CreateRole`
+- `iam:DeleteRole`
+- `iam:GetRole`
+- `iam:PassRole`
+- `iam:AttachRolePolicy`
+- `iam:DetachRolePolicy`
+- `iam:TagRole`
+- `iam:UntagRole`
+- `iam:CreateServiceLinkedRole`
+- `s3:ListBucket`
+- `s3:GetObject`
+- `s3:PutObject`
+- `s3:DeleteObject`
+
+If your state bucket uses a customer-managed KMS key, also include:
+
+- `kms:Decrypt`
+- `kms:Encrypt`
+- `kms:GenerateDataKey`
+- `kms:DescribeKey`
+
 ## Notes
 
-- Ghost is configured with `http://<domain>` by default in this stack.
-- Add TLS (for example with CloudFront/ALB + ACM or reverse proxy) if you want HTTPS end-to-end at infrastructure level.
+- Ghost is configured with `https://<domain>` and ALB redirects HTTP to HTTPS.
