@@ -6,19 +6,23 @@ data "aws_route53_zone" "primary" {
 module "ghost_test" {
   source = "./modules/ghost_site"
 
-  name_prefix   = "ghost-test"
-  domain_name   = "test.johannessen.co"
-  instance_type = var.ghost_instance_type
-  db_password   = var.db_password
+  name_prefix    = "ghost-test"
+  domain_name    = "test.johannessen.co"
+  instance_type  = var.ghost_instance_type
+  db_password    = var.db_password
+  ssh_allowed_ip = var.ssh_allowed_ip
+  key_name       = "ghost-ec2-access"
 }
 
 module "ghost_prod" {
   source = "./modules/ghost_site"
 
-  name_prefix   = "ghost-prod"
-  domain_name   = "blog.johannessen.co"
-  instance_type = var.ghost_instance_type
-  db_password   = var.db_password
+  name_prefix    = "ghost-prod"
+  domain_name    = "blog.johannessen.co"
+  instance_type  = var.ghost_instance_type
+  db_password    = var.db_password
+  ssh_allowed_ip = var.ssh_allowed_ip
+  key_name       = "ghost-ec2-access"
 }
 
 resource "aws_route53_record" "ghost_test" {
@@ -37,3 +41,7 @@ resource "aws_route53_record" "ghost_prod" {
   records = [module.ghost_prod.elastic_ip]
 }
 
+resource "aws_key_pair" "ssh_key" {
+  key_name   = "ghost-ec2-access"
+  public_key = file("./keys/ghost-ec2-key-2026-07-16.pub") # Reads the local public key file
+}

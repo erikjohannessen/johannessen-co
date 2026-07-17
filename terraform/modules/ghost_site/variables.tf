@@ -19,3 +19,14 @@ variable "db_password" {
   sensitive   = true
 }
 
+variable "ssh_allowed_ip" {
+  description = "IP Address that is allowed to SSH into Ghost"
+  type        = string
+}
+
+variable "key_name" {
+  description = "EC2 key pair name to use for SSH access. Leave null to disable key-based SSH login."
+  type        = string
+  default     = null
+}
+

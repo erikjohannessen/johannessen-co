@@ -26,3 +26,14 @@ variable "db_password" {
   }
 }
 
+variable "ssh_allowed_ip" {
+  description = "IPv4 address allowed to SSH into Ghost."
+  type        = string
+  default     = "127.0.0.1"
+
+  validation {
+    condition     = !can(regex("/", var.ssh_allowed_ip)) && can(cidrnetmask("${var.ssh_allowed_ip}/32"))
+    error_message = "ssh_allowed_ip must be a single IPv4 address (no CIDR suffix), e.g. \"203.0.113.10\"."
+  }
+}
+
