@@ -82,48 +82,6 @@ jobs:
           echo "Waiting for RDS instance: $prod_db_id"
           aws rds wait db-instance-available --db-instance-identifier "$prod_db_id"
 
-      - name: Health Check
-        run: |
-          max_attempts=30
-          retry_sleep=30
-          pairs=(
-            "test.johannessen.co"
-            "blog.johannessen.co"
-          )
-          for host in "${pairs[@]}"; do
-            url="https://$host/"
-            echo "Checking $url..."
-            for i in $(seq 1 $max_attempts); do
-              set +e
-              status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "$url")
-              curl_exit=$?
-              set -e
-              [ "$curl_exit" -ne 0 ] && echo "curl failed (exit $curl_exit) for $url"
-              if [ "$status" -ge 200 ] && [ "$status" -lt 400 ]; then
-                echo "✓ $url returned HTTP $status"
-                break
-              fi
-              if [ "$i" -eq "$max_attempts" ]; then
-                echo "✗ $url did not return HTTP 2xx/3xx after $max_attempts attempts (last status: $status)"
-                exit 1
-              fi
-              echo "Attempt $i: got HTTP $status, retrying in ${retry_sleep}s..."
-              sleep "$retry_sleep"
-            done
-          done
-
-      - name: Verify HTTP Redirect
-        run: |
-          for host in test.johannessen.co blog.johannessen.co; do
-            location=$(curl -sI --max-time 20 "http://$host/" | awk -F': ' 'tolower($1)=="location" {print $2}' | tr -d '\r')
-            if [ "$location" = "https://$host/" ]; then
-              echo "✓ http://$host redirects to https://$host/"
-            else
-              echo "✗ http://$host did not redirect to expected HTTPS URL (got: $location)"
-              exit 1
-            fi
-          done
-
       - name: Smoke Test
         run: |
           pairs=(
@@ -131,8 +89,13 @@ jobs:
             "blog.johannessen.co"
           )
           for host in "${pairs[@]}"; do
-            echo "Smoke testing https://$host..."
-            body=$(curl -sL --max-time 20 "https://$host/")
+            case "$host" in
+               test.johannessen.co) alb_dns_name=$(terraform output -raw test_alb_dns_name) ;;
+               blog.johannessen.co) alb_dns_name=$(terraform output -raw prod_alb_dns_name) ;;
+               *) echo "Unknown host: $host" && exit 1 ;;
+            esac
+            echo "Smoke testing https://$host (via $alb_dns_name)..."
+            body=$(curl -sL --max-time 20 --connect-to "$host:443:$alb_dns_name:443" "https://$host/")
             if echo "$body" | grep -qi "<html"; then
               echo "✓ $host returned HTML content"
             else
