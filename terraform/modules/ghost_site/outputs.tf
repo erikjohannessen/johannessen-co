@@ -1,11 +1,21 @@
-output "elastic_ip" {
-  description = "Elastic IP attached to Ghost EC2 instance."
-  value       = aws_eip.ghost.public_ip
+output "alb_dns_name" {
+  description = "Public DNS name of the Ghost ALB."
+  value       = aws_lb.ghost.dns_name
 }
 
-output "instance_id" {
-  description = "EC2 instance ID."
-  value       = aws_instance.ghost.id
+output "alb_zone_id" {
+  description = "Route53 zone ID of the Ghost ALB."
+  value       = aws_lb.ghost.zone_id
+}
+
+output "ecs_cluster_name" {
+  description = "ECS cluster name."
+  value       = aws_ecs_cluster.ghost.name
+}
+
+output "ecs_service_name" {
+  description = "ECS service name."
+  value       = aws_ecs_service.ghost.name
 }
 
 output "db_instance_identifier" {

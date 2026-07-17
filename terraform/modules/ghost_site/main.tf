@@ -9,19 +9,9 @@ data "aws_subnets" "default" {
   }
 }
 
-data "aws_ami" "amazon_linux_2023" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["al2023-ami-2023*-x86_64"]
-  }
-}
-
-resource "aws_security_group" "ghost" {
-  name_prefix = "${var.name_prefix}-ghost-"
-  description = "Ghost web security group"
+resource "aws_security_group" "alb" {
+  name_prefix = "${var.name_prefix}-alb-"
+  description = "Ghost ALB security group"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
@@ -48,17 +38,17 @@ resource "aws_security_group" "ghost" {
   }
 }
 
-resource "aws_security_group" "ghostssh" {
-  name_prefix = "${var.name_prefix}-ghost-ssh-"
-  description = "Ghost ssh security group"
+resource "aws_security_group" "ecs_tasks" {
+  name_prefix = "${var.name_prefix}-ecs-"
+  description = "Ghost ECS task security group"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
-    description = "SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["${var.ssh_allowed_ip}/32"]
+    description     = "HTTP from ALB"
+    from_port       = 2368
+    to_port         = 2368
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
   }
 
   egress {
@@ -75,11 +65,11 @@ resource "aws_security_group" "db" {
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
-    description     = "MySQL from Ghost host"
+    description     = "MySQL from Ghost tasks"
     from_port       = 3306
     to_port         = 3306
     protocol        = "tcp"
-    security_groups = [aws_security_group.ghost.id]
+    security_groups = [aws_security_group.ecs_tasks.id]
   }
 
   egress {
@@ -112,68 +102,179 @@ resource "aws_db_instance" "ghost" {
   vpc_security_group_ids  = [aws_security_group.db.id]
 }
 
-resource "aws_iam_role" "ssm" {
-  name = "${var.name_prefix}-ssm-role"
+resource "aws_ecs_cluster" "ghost" {
+  name = "${var.name_prefix}-cluster"
+}
+
+resource "aws_cloudwatch_log_group" "ghost" {
+  name              = "/ecs/${var.name_prefix}-ghost"
+  retention_in_days = 14
+}
+
+resource "aws_iam_role" "ecs_task_execution" {
+  name = "${var.name_prefix}-ecs-task-exec-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
       Effect = "Allow"
       Principal = {
-        Service = "ec2.amazonaws.com"
+        Service = "ecs-tasks.amazonaws.com"
       }
       Action = "sts:AssumeRole"
     }]
   })
 }
 
-resource "aws_iam_role_policy_attachment" "ssm_core" {
-  role       = aws_iam_role.ssm.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
+  role       = aws_iam_role.ecs_task_execution.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-resource "aws_iam_instance_profile" "ssm" {
-  name = "${var.name_prefix}-ssm-profile"
-  role = aws_iam_role.ssm.name
+resource "aws_lb" "ghost" {
+  name               = "${var.name_prefix}-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb.id]
+  subnets            = data.aws_subnets.default.ids
 }
 
-locals {
-  user_data = templatefile("${path.module}/templates/user_data.sh.tftpl", {
-    nginx_conf     = file("${path.module}/templates/nginx.conf")
-    healthcheck_js = file("${path.module}/templates/healthcheck.js")
-    db_address     = aws_db_instance.ghost.address
-    compose_content = templatefile("${path.module}/templates/docker-compose.yml.tftpl", {
-      domain_name = var.domain_name
-      db_address  = aws_db_instance.ghost.address
-      db_password = var.db_password
-    })
-  })
-}
-
-resource "aws_instance" "ghost" {
-  ami                    = data.aws_ami.amazon_linux_2023.id
-  instance_type          = var.instance_type
-  subnet_id              = data.aws_subnets.default.ids[0]
-  vpc_security_group_ids = [aws_security_group.ghost.id, aws_security_group.ghostssh.id]
-  iam_instance_profile   = aws_iam_instance_profile.ssm.name
-  key_name               = var.key_name
-  user_data              = local.user_data
-
-  tags = {
-    Name = "${var.name_prefix}-ec2"
-  }
+resource "aws_acm_certificate" "ghost" {
+  domain_name       = var.domain_name
+  validation_method = "DNS"
 
   lifecycle {
-    # Prevent unexpected instance replacement when Amazon publishes a new AMI.
-    # To upgrade the AMI, remove this ignore rule, apply, then re-add it.
-    ignore_changes = [ami]
-    # Create a replacement instance before destroying the old one to minimise
-    # the downtime window during intentional instance replacements.
     create_before_destroy = true
   }
 }
 
-resource "aws_eip" "ghost" {
-  domain   = "vpc"
-  instance = aws_instance.ghost.id
+resource "aws_route53_record" "ghost_cert_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.ghost.domain_validation_options : dvo.domain_name => {
+      name  = dvo.resource_record_name
+      type  = dvo.resource_record_type
+      value = dvo.resource_record_value
+    }
+  }
+
+  zone_id         = var.route53_zone_id
+  name            = each.value.name
+  type            = each.value.type
+  ttl             = 60
+  records         = [each.value.value]
+  allow_overwrite = true
+}
+
+resource "aws_acm_certificate_validation" "ghost" {
+  certificate_arn         = aws_acm_certificate.ghost.arn
+  validation_record_fqdns = [for record in aws_route53_record.ghost_cert_validation : record.fqdn]
+}
+
+resource "aws_lb_target_group" "ghost" {
+  name        = "${var.name_prefix}-tg"
+  port        = 2368
+  protocol    = "HTTP"
+  target_type = "ip"
+  vpc_id      = data.aws_vpc.default.id
+
+  health_check {
+    path                = "/"
+    protocol            = "HTTP"
+    matcher             = "200-399"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 5
+  }
+}
+
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.ghost.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type = "redirect"
+
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}
+
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.ghost.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = aws_acm_certificate_validation.ghost.certificate_arn
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.ghost.arn
+  }
+}
+
+resource "aws_ecs_task_definition" "ghost" {
+  family                   = "${var.name_prefix}-ghost"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.task_cpu
+  memory                   = var.task_memory
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "ghost"
+      image     = var.ghost_image
+      essential = true
+      portMappings = [
+        {
+          containerPort = 2368
+          hostPort      = 2368
+          protocol      = "tcp"
+        }
+      ]
+      environment = [
+        { name = "url", value = "https://${var.domain_name}" },
+        { name = "database__client", value = "mysql" },
+        { name = "database__connection__host", value = aws_db_instance.ghost.address },
+        { name = "database__connection__user", value = "ghostuser" },
+        { name = "database__connection__password", value = var.db_password },
+        { name = "database__connection__database", value = "ghost" }
+      ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.ghost.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "ghost"
+        }
+      }
+    }
+  ])
+}
+
+resource "aws_ecs_service" "ghost" {
+  name            = "${var.name_prefix}-service"
+  cluster         = aws_ecs_cluster.ghost.id
+  task_definition = aws_ecs_task_definition.ghost.arn
+  desired_count   = var.desired_count
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets          = data.aws_subnets.default.ids
+    security_groups  = [aws_security_group.ecs_tasks.id]
+    assign_public_ip = true
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.ghost.arn
+    container_name   = "ghost"
+    container_port   = 2368
+  }
+
+  depends_on = [aws_lb_listener.https]
 }

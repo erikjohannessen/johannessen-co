@@ -6,42 +6,43 @@ data "aws_route53_zone" "primary" {
 module "ghost_test" {
   source = "./modules/ghost_site"
 
-  name_prefix    = "ghost-test"
-  domain_name    = "test.johannessen.co"
-  instance_type  = var.ghost_instance_type
-  db_password    = var.db_password
-  ssh_allowed_ip = var.ssh_allowed_ip
-  key_name       = "ghost-ec2-access"
+  name_prefix     = "ghost-test"
+  domain_name     = "test.johannessen.co"
+  route53_zone_id = data.aws_route53_zone.primary.zone_id
+  aws_region      = var.aws_region
+  db_password     = var.db_password
 }
 
 module "ghost_prod" {
   source = "./modules/ghost_site"
 
-  name_prefix    = "ghost-prod"
-  domain_name    = "blog.johannessen.co"
-  instance_type  = var.ghost_instance_type
-  db_password    = var.db_password
-  ssh_allowed_ip = var.ssh_allowed_ip
-  key_name       = "ghost-ec2-access"
+  name_prefix     = "ghost-prod"
+  domain_name     = "blog.johannessen.co"
+  route53_zone_id = data.aws_route53_zone.primary.zone_id
+  aws_region      = var.aws_region
+  db_password     = var.db_password
 }
 
 resource "aws_route53_record" "ghost_test" {
   zone_id = data.aws_route53_zone.primary.zone_id
   name    = "test.johannessen.co"
   type    = "A"
-  ttl     = 300
-  records = [module.ghost_test.elastic_ip]
+
+  alias {
+    name                   = module.ghost_test.alb_dns_name
+    zone_id                = module.ghost_test.alb_zone_id
+    evaluate_target_health = true
+  }
 }
 
 resource "aws_route53_record" "ghost_prod" {
   zone_id = data.aws_route53_zone.primary.zone_id
   name    = "blog.johannessen.co"
   type    = "A"
-  ttl     = 300
-  records = [module.ghost_prod.elastic_ip]
-}
 
-resource "aws_key_pair" "ssh_key" {
-  key_name   = "ghost-ec2-access"
-  public_key = file("./keys/ghost-ec2-key-2026-07-16.pub") # Reads the local public key file
+  alias {
+    name                   = module.ghost_prod.alb_dns_name
+    zone_id                = module.ghost_prod.alb_zone_id
+    evaluate_target_health = true
+  }
 }

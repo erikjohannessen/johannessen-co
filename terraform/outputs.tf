@@ -1,31 +1,41 @@
 output "test_site_url" {
   description = "Test Ghost URL."
-  value       = "http://test.johannessen.co"
+  value       = "https://test.johannessen.co"
 }
 
 output "prod_site_url" {
   description = "Production Ghost URL."
-  value       = "http://blog.johannessen.co"
+  value       = "https://blog.johannessen.co"
 }
 
-output "test_elastic_ip" {
-  description = "Elastic IP of the test Ghost EC2 instance."
-  value       = module.ghost_test.elastic_ip
+output "test_alb_dns_name" {
+  description = "ALB DNS name of the test Ghost service."
+  value       = module.ghost_test.alb_dns_name
 }
 
-output "prod_elastic_ip" {
-  description = "Elastic IP of the production Ghost EC2 instance."
-  value       = module.ghost_prod.elastic_ip
+output "prod_alb_dns_name" {
+  description = "ALB DNS name of the production Ghost service."
+  value       = module.ghost_prod.alb_dns_name
 }
 
-output "test_instance_id" {
-  description = "EC2 instance ID of the test Ghost instance."
-  value       = module.ghost_test.instance_id
+output "test_ecs_cluster_name" {
+  description = "ECS cluster name of the test Ghost service."
+  value       = module.ghost_test.ecs_cluster_name
 }
 
-output "prod_instance_id" {
-  description = "EC2 instance ID of the production Ghost instance."
-  value       = module.ghost_prod.instance_id
+output "prod_ecs_cluster_name" {
+  description = "ECS cluster name of the production Ghost service."
+  value       = module.ghost_prod.ecs_cluster_name
+}
+
+output "test_ecs_service_name" {
+  description = "ECS service name of the test Ghost service."
+  value       = module.ghost_test.ecs_service_name
+}
+
+output "prod_ecs_service_name" {
+  description = "ECS service name of the production Ghost service."
+  value       = module.ghost_prod.ecs_service_name
 }
 
 output "test_db_instance_identifier" {

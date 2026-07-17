@@ -8,8 +8,8 @@ variable "domain_name" {
   type        = string
 }
 
-variable "instance_type" {
-  description = "EC2 instance type for Ghost."
+variable "route53_zone_id" {
+  description = "Route53 hosted zone ID used for ACM DNS validation."
   type        = string
 }
 
@@ -19,14 +19,32 @@ variable "db_password" {
   sensitive   = true
 }
 
-variable "ssh_allowed_ip" {
-  description = "IP Address that is allowed to SSH into Ghost"
+variable "aws_region" {
+  description = "AWS region for CloudWatch logs configuration."
   type        = string
 }
 
-variable "key_name" {
-  description = "EC2 key pair name to use for SSH access. Leave null to disable key-based SSH login."
+variable "ghost_image" {
+  description = "Container image for Ghost."
   type        = string
-  default     = null
+  default     = "ghost:5-alpine"
+}
+
+variable "task_cpu" {
+  description = "Fargate task CPU units."
+  type        = string
+  default     = "512"
+}
+
+variable "task_memory" {
+  description = "Fargate task memory in MiB."
+  type        = string
+  default     = "1024"
+}
+
+variable "desired_count" {
+  description = "Desired number of running Ghost tasks."
+  type        = number
+  default     = 1
 }
 
