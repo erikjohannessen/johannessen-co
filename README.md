@@ -64,7 +64,7 @@ Workflow files:
 - Push to `main`: `terraform apply -auto-approve` (requires `TF_STATE_BUCKET`)
 - State is stored in S3 with S3-native locking (`use_lockfile=true`) to keep GitHub Actions deployments consistent across runs.
 
-## GitHubActions Role Permissions
+## GitHub Actions Role Permissions
 
 The AWS role assumed by GitHub Actions must be able to create and manage ECS, ALB, ACM, RDS, Route53, IAM roles for task execution, CloudWatch logs, and Terraform state in S3.
 
