@@ -48,48 +48,176 @@ resource "aws_iam_role_policy" "github_actions" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
-        Action   = ["acm:*", "cloudwatch:*", "ec2:*", "ecr:*", "ecs:*", "elasticloadbalancing:*"]
-        Resource = "*"
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["iam:AttachRolePolicy", "iam:CreateRole", "iam:DeleteRole", "iam:DeleteRolePolicy", "iam:DetachRolePolicy", "iam:GetRole", "iam:GetRolePolicy", "iam:ListAttachedRolePolicies", "iam:ListInstanceProfilesForRole", "iam:ListRolePolicies", "iam:PassRole", "iam:PutRolePolicy", "iam:TagRole", "iam:UntagRole", "iam:UpdateAssumeRolePolicy"]
-        Resource = "*"
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["iam:CreateOpenIDConnectProvider", "iam:DeleteOpenIDConnectProvider", "iam:GetOpenIDConnectProvider", "iam:ListOpenIDConnectProviders", "iam:TagOpenIDConnectProvider", "iam:UntagOpenIDConnectProvider", "iam:UpdateOpenIDConnectProviderThumbprint"]
-        Resource = "*"
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["logs:*"]
-        Resource = "*"
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["rds:*"]
-        Resource = "*"
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["route53:*"]
+        Effect = "Allow"
+        Action = [
+          "acm:AddTagsToCertificate",
+          "acm:DeleteCertificate",
+          "acm:DescribeCertificate",
+          "acm:ListCertificates",
+          "acm:ListTagsForCertificate",
+          "acm:RequestCertificate",
+        ]
         Resource = "*"
       },
       {
         Effect = "Allow"
-        Action = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket", "s3:GetBucketVersioning"]
+        Action = [
+          "ec2:AuthorizeSecurityGroupEgress",
+          "ec2:AuthorizeSecurityGroupIngress",
+          "ec2:CreateSecurityGroup",
+          "ec2:CreateTags",
+          "ec2:DeleteSecurityGroup",
+          "ec2:DeleteTags",
+          "ec2:DescribeAccountAttributes",
+          "ec2:DescribeSecurityGroups",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeVpcs",
+          "ec2:RevokeSecurityGroupEgress",
+          "ec2:RevokeSecurityGroupIngress",
+          "ec2:UpdateSecurityGroupRuleDescriptionsEgress",
+          "ec2:UpdateSecurityGroupRuleDescriptionsIngress",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecs:CreateCluster",
+          "ecs:CreateService",
+          "ecs:DeleteCluster",
+          "ecs:DeleteService",
+          "ecs:DeregisterTaskDefinition",
+          "ecs:DescribeClusters",
+          "ecs:DescribeServices",
+          "ecs:DescribeTaskDefinition",
+          "ecs:ListClusters",
+          "ecs:ListServices",
+          "ecs:ListTagsForResource",
+          "ecs:RegisterTaskDefinition",
+          "ecs:TagResource",
+          "ecs:UntagResource",
+          "ecs:UpdateService",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "elasticloadbalancing:AddTags",
+          "elasticloadbalancing:CreateListener",
+          "elasticloadbalancing:CreateLoadBalancer",
+          "elasticloadbalancing:CreateTargetGroup",
+          "elasticloadbalancing:DeleteListener",
+          "elasticloadbalancing:DeleteLoadBalancer",
+          "elasticloadbalancing:DeleteTargetGroup",
+          "elasticloadbalancing:DescribeListeners",
+          "elasticloadbalancing:DescribeLoadBalancerAttributes",
+          "elasticloadbalancing:DescribeLoadBalancers",
+          "elasticloadbalancing:DescribeTags",
+          "elasticloadbalancing:DescribeTargetGroupAttributes",
+          "elasticloadbalancing:DescribeTargetGroups",
+          "elasticloadbalancing:ModifyListener",
+          "elasticloadbalancing:ModifyLoadBalancerAttributes",
+          "elasticloadbalancing:ModifyTargetGroup",
+          "elasticloadbalancing:ModifyTargetGroupAttributes",
+          "elasticloadbalancing:RemoveTags",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:AttachRolePolicy",
+          "iam:CreateOpenIDConnectProvider",
+          "iam:CreateRole",
+          "iam:DeleteOpenIDConnectProvider",
+          "iam:DeleteRole",
+          "iam:DeleteRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:GetOpenIDConnectProvider",
+          "iam:GetRole",
+          "iam:GetRolePolicy",
+          "iam:ListAttachedRolePolicies",
+          "iam:ListInstanceProfilesForRole",
+          "iam:ListOpenIDConnectProviders",
+          "iam:ListRolePolicies",
+          "iam:ListRoleTags",
+          "iam:PassRole",
+          "iam:PutRolePolicy",
+          "iam:TagOpenIDConnectProvider",
+          "iam:TagRole",
+          "iam:UntagOpenIDConnectProvider",
+          "iam:UntagRole",
+          "iam:UpdateAssumeRolePolicy",
+          "iam:UpdateOpenIDConnectProviderThumbprint",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:DeleteLogGroup",
+          "logs:DescribeLogGroups",
+          "logs:ListTagsForResource",
+          "logs:ListTagsLogGroup",
+          "logs:PutRetentionPolicy",
+          "logs:TagLogGroup",
+          "logs:TagResource",
+          "logs:UntagLogGroup",
+          "logs:UntagResource",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "rds:AddTagsToResource",
+          "rds:CreateDBInstance",
+          "rds:CreateDBSubnetGroup",
+          "rds:DeleteDBInstance",
+          "rds:DeleteDBSubnetGroup",
+          "rds:DescribeDBInstances",
+          "rds:DescribeDBSubnetGroups",
+          "rds:ListTagsForResource",
+          "rds:ModifyDBInstance",
+          "rds:ModifyDBSubnetGroup",
+          "rds:RemoveTagsFromResource",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "route53:ChangeResourceRecordSets",
+          "route53:GetChange",
+          "route53:GetHostedZone",
+          "route53:ListHostedZones",
+          "route53:ListHostedZonesByName",
+          "route53:ListResourceRecordSets",
+          "route53:ListTagsForResource",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:DeleteObject",
+          "s3:GetBucketVersioning",
+          "s3:GetObject",
+          "s3:ListBucket",
+          "s3:PutObject",
+        ]
         Resource = [
           "arn:aws:s3:::${var.tf_state_bucket}",
-          "arn:aws:s3:::${var.tf_state_bucket}/*"
+          "arn:aws:s3:::${var.tf_state_bucket}/*",
         ]
       },
       {
         Effect   = "Allow"
         Action   = ["sts:GetCallerIdentity"]
         Resource = "*"
-      }
+      },
     ]
   })
 }
