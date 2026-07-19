@@ -30,8 +30,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Fail if terraform state bucket is not set
-        if: vars.TF_STATE_BUCKET == ''
+      - name: Fail if critical environment variables are not set
+        if: vars.AWS_REGION == '' || vars.AWS_ROLE_ARN == '' || vars.AWS_ROLE_NAME == '' || vars.TF_STATE_BUCKET == ''
         run: exit 1
 
       - name: Configure AWS credentials
