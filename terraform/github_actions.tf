@@ -142,7 +142,6 @@ resource "aws_iam_role_policy" "github_actions" {
           "iam:ListOpenIDConnectProviders",
           "iam:ListRolePolicies",
           "iam:ListRoleTags",
-          "iam:PassRole",
           "iam:PutRolePolicy",
           "iam:TagOpenIDConnectProvider",
           "iam:TagRole",
@@ -152,6 +151,18 @@ resource "aws_iam_role_policy" "github_actions" {
           "iam:UpdateOpenIDConnectProviderThumbprint",
         ]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = ["iam:PassRole"]
+        Resource = [
+          "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/ghost-*-ecs-task-exec-role",
+        ]
+        Condition = {
+          StringEquals = {
+            "iam:PassedToService" = "ecs-tasks.amazonaws.com"
+          }
+        }
       },
       {
         Effect = "Allow"
