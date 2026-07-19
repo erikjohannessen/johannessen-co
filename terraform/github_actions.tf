@@ -12,7 +12,7 @@ import {
 }
 
 resource "aws_iam_role" "github_actions" {
-  name                 = var.github_actions_role_name
+  name                 = var.aws_role_name
   max_session_duration = 7200
 
   assume_role_policy = jsonencode({
@@ -37,7 +37,7 @@ resource "aws_iam_role" "github_actions" {
 
 import {
   to = aws_iam_role.github_actions
-  id = var.github_actions_role_name
+  id = var.aws_role_name
 }
 
 resource "aws_iam_role_policy" "github_actions" {

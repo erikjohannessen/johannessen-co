@@ -20,7 +20,7 @@ variable "db_password" {
   }
 }
 
-variable "github_actions_role_name" {
+variable "aws_role_name" {
   description = "Name of the IAM role used by GitHub Actions via OIDC."
   type        = string
 }
