@@ -25,6 +25,7 @@ For each environment:
 - Terraform >= 1.10
 - GitHub repository variables (Settings → Secrets and variables → Actions → Variables):
   - `AWS_ROLE_ARN` (OIDC assumable role ARN for GitHub Actions, e.g. `arn:aws:iam::123456789012:role/GitHubActionsRole`)
+  - `AWS_ROLE_NAME` (Role Name for the AWS_ROLE_ARN, e.g. `GitHubActionsRole`)
   - `AWS_REGION` (for example `us-east-1`)
   - `TF_STATE_BUCKET` (S3 bucket for Terraform state; plan and apply are skipped when unset)
   - `TF_STATE_KEY` (optional, default `ghost/terraform.tfstate`)
