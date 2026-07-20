@@ -11,38 +11,13 @@ import {
   id = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
 }
 
-resource "aws_iam_role" "github_actions" {
-  name                 = var.aws_role_name
-  max_session_duration = 7200
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Principal = {
-        Federated = aws_iam_openid_connect_provider.github_actions.arn
-      }
-      Action = "sts:AssumeRoleWithWebIdentity"
-      Condition = {
-        StringEquals = {
-          "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-        }
-        StringLike = {
-          "token.actions.githubusercontent.com:sub" = "repo:erikjohannessen/johannessen-co:*"
-        }
-      }
-    }]
-  })
-}
-
-import {
-  to = aws_iam_role.github_actions
-  id = var.aws_role_name
+data "aws_iam_role" "github_actions" {
+  name = var.aws_role_name
 }
 
 resource "aws_iam_role_policy" "github_actions" {
   name = "github-actions-permissions"
-  role = aws_iam_role.github_actions.name
+  role = data.aws_iam_role.github_actions.name
 
   policy = jsonencode({
     Version = "2012-10-17"
