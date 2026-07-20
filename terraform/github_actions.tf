@@ -11,38 +11,17 @@ import {
   id = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
 }
 
-resource "aws_iam_role" "github_actions" {
-  name                 = var.aws_role_name
-  max_session_duration = 7200
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Principal = {
-        Federated = aws_iam_openid_connect_provider.github_actions.arn
-      }
-      Action = "sts:AssumeRoleWithWebIdentity"
-      Condition = {
-        StringEquals = {
-          "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-        }
-        StringLike = {
-          "token.actions.githubusercontent.com:sub" = "repo:erikjohannessen/johannessen-co:*"
-        }
-      }
-    }]
-  })
-}
-
-import {
-  to = aws_iam_role.github_actions
-  id = var.aws_role_name
+# Read the pre-existing IAM role as a data source rather than managing it
+# as a resource, to avoid a circular dependency: the role needs
+# iam:GetRolePolicy to let Terraform refresh itself, but that permission is
+# only granted once the inline policy below is first applied.
+data "aws_iam_role" "github_actions" {
+  name = var.aws_role_name
 }
 
 resource "aws_iam_role_policy" "github_actions" {
   name = "github-actions-permissions"
-  role = aws_iam_role.github_actions.name
+  role = data.aws_iam_role.github_actions.name
 
   policy = jsonencode({
     Version = "2012-10-17"
