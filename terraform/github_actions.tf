@@ -37,7 +37,7 @@ resource "aws_iam_role" "github_actions" {
 
 import {
   to = aws_iam_role.github_actions
-  id = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.aws_role_name}"
+  id = var.aws_role_name
 }
 
 resource "aws_iam_role_policy" "github_actions" {
