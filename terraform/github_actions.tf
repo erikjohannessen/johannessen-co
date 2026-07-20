@@ -11,6 +11,10 @@ import {
   id = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
 }
 
+# Read the pre-existing IAM role as a data source rather than managing it
+# as a resource, to avoid a circular dependency: the role needs
+# iam:GetRolePolicy to let Terraform refresh itself, but that permission is
+# only granted once the inline policy below is first applied.
 data "aws_iam_role" "github_actions" {
   name = var.aws_role_name
 }
