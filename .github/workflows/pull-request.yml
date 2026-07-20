@@ -57,7 +57,9 @@ jobs:
 
       - name: Terraform Plan
         id: plan
-        run: terraform plan -input=false -no-color 2>&1 | tee "$GITHUB_WORKSPACE/plan.txt"; exit ${PIPESTATUS[0]}
+        run: |
+          export TF_LOG=DEBUG
+          terraform plan -input=false -out=tfplan -no-color 2>&1 | tee "$GITHUB_WORKSPACE/plan.txt"; exit ${PIPESTATUS[0]}
 
       - name: Post Plan to PR
         if: always() && steps.plan.outcome != 'skipped'
