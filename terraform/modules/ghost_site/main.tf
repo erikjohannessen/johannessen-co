@@ -90,7 +90,7 @@ resource "aws_db_instance" "ghost" {
   allocated_storage       = 20
   db_name                 = "ghost"
   engine                  = "mysql"
-  engine_version          = "8.0"
+  engine_version          = "8.4"
   instance_class          = "db.t4g.micro"
   username                = "ghostuser"
   password                = var.db_password
