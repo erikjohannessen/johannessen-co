@@ -27,7 +27,6 @@ variable "aws_region" {
 variable "ghost_image" {
   description = "Container image for Ghost."
   type        = string
-  default     = "ghost:5-alpine"
 }
 
 variable "task_cpu" {
