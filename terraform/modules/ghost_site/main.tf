@@ -86,20 +86,22 @@ resource "aws_db_subnet_group" "ghost" {
 }
 
 resource "aws_db_instance" "ghost" {
-  identifier_prefix       = "${var.name_prefix}-mysql"
-  allocated_storage       = 20
-  db_name                 = "ghost"
-  engine                  = "mysql"
-  engine_version          = "8.4"
-  instance_class          = "db.t4g.micro"
-  username                = "ghostuser"
-  password                = var.db_password
-  skip_final_snapshot     = true
-  deletion_protection     = false
-  backup_retention_period = 7
-  publicly_accessible     = false
-  db_subnet_group_name    = aws_db_subnet_group.ghost.name
-  vpc_security_group_ids  = [aws_security_group.db.id]
+  identifier_prefix           = "${var.name_prefix}-mysql"
+  allocated_storage           = 20
+  db_name                     = "ghost"
+  engine                      = "mysql"
+  engine_version              = "8.4"
+  instance_class              = "db.t4g.micro"
+  username                    = "ghostuser"
+  password                    = var.db_password
+  skip_final_snapshot         = true
+  deletion_protection         = false
+  backup_retention_period     = 7
+  publicly_accessible         = false
+  db_subnet_group_name        = aws_db_subnet_group.ghost.name
+  vpc_security_group_ids      = [aws_security_group.db.id]
+  allow_major_version_upgrade = true
+  apply_immediately           = true
 
   lifecycle {
     create_before_destroy = true
