@@ -86,7 +86,7 @@ resource "aws_db_subnet_group" "ghost" {
 }
 
 resource "aws_db_instance" "ghost" {
-  identifier              = "${var.name_prefix}-mysql"
+  identifier_prefix       = "${var.name_prefix}-mysql"
   allocated_storage       = 20
   db_name                 = "ghost"
   engine                  = "mysql"
@@ -100,6 +100,10 @@ resource "aws_db_instance" "ghost" {
   publicly_accessible     = false
   db_subnet_group_name    = aws_db_subnet_group.ghost.name
   vpc_security_group_ids  = [aws_security_group.db.id]
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "aws_ecs_cluster" "ghost" {
