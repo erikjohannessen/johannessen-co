@@ -16,7 +16,7 @@ variable "ghost_image" {
   nullable    = false
 
   validation {
-    condition     = length(trim(var.ghost_image)) > 0
+    condition     = length(trimspace(var.ghost_image)) > 0
     error_message = "ghost_image must be a non-empty container image reference (e.g. ghost:6-alpine)."
   }
 }
