@@ -14,11 +14,6 @@ variable "ghost_image" {
   type        = string
   default     = "ghost:6-alpine"
   nullable    = false
-
-  validation {
-    condition     = length(trimspace(var.ghost_image)) > 0
-    error_message = "ghost_image must be a non-empty container image reference (e.g. ghost:6-alpine)."
-  }
 }
 
 variable "db_password" {
