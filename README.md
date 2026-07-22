@@ -27,6 +27,7 @@ For each environment:
   - `AWS_ROLE_ARN` (OIDC assumable role ARN for GitHub Actions, e.g. `arn:aws:iam::123456789012:role/GitHubActionsRole`)
   - `AWS_ROLE_NAME` (Role Name for the AWS_ROLE_ARN, e.g. `GitHubActionsRole`)
   - `AWS_REGION` (for example `us-east-1`)
+  - `GHOST_IMAGE` (Container image to use for ghost, default `ghost:6-alpine`)
   - `TF_STATE_BUCKET` (S3 bucket for Terraform state; plan and apply are skipped when unset)
   - `TF_STATE_KEY` (optional, default `ghost/terraform.tfstate`)
 - GitHub repository secret (Settings → Secrets and variables → Actions → Secrets):

@@ -34,6 +34,10 @@ jobs:
         if: vars.AWS_REGION == '' || vars.AWS_ROLE_ARN == '' || vars.AWS_ROLE_NAME == '' || vars.TF_STATE_BUCKET == ''
         run: exit 1
 
+      - name: Set ghost_image variable if configured
+        if: ${{ vars.GHOST_IMAGE != '' }}
+        run: echo "TF_VAR_ghost_image=${{ vars.GHOST_IMAGE }}" >> $GITHUB_ENV
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:

@@ -11,6 +11,7 @@ module "ghost_test" {
   route53_zone_id = data.aws_route53_zone.primary.zone_id
   aws_region      = var.aws_region
   db_password     = var.db_password
+  ghost_image     = var.ghost_image
 }
 
 module "ghost_prod" {
@@ -21,6 +22,7 @@ module "ghost_prod" {
   route53_zone_id = data.aws_route53_zone.primary.zone_id
   aws_region      = var.aws_region
   db_password     = var.db_password
+  ghost_image     = var.ghost_image
 }
 
 resource "aws_route53_record" "ghost_test" {

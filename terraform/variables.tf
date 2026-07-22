@@ -9,6 +9,13 @@ variable "route53_zone_name" {
   default     = "johannessen.co"
 }
 
+variable "ghost_image" {
+  description = "Container image for Ghost."
+  type        = string
+  default     = "ghost:6-alpine"
+  nullable    = false
+}
+
 variable "db_password" {
   description = "MySQL password for Ghost databases."
   type        = string
