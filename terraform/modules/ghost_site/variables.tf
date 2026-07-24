@@ -19,6 +19,13 @@ variable "db_password" {
   sensitive   = true
 }
 
+variable "local_dev_ip" {
+  description = "Optional public IPv4 address for local development access to MySQL (without /32)."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
 variable "aws_region" {
   description = "AWS region for CloudWatch logs configuration."
   type        = string
