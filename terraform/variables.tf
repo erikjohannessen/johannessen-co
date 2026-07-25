@@ -16,6 +16,12 @@ variable "ghost_image" {
   nullable    = false
 }
 
+variable "ssm_tunnel_instance_type" {
+  description = "Instance type used for SSM database tunnel hosts."
+  type        = string
+  default     = "t3.nano"
+}
+
 variable "db_password" {
   description = "MySQL password for Ghost databases."
   type        = string

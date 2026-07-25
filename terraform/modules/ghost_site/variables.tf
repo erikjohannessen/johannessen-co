@@ -26,6 +26,12 @@ variable "local_dev_ip" {
   nullable    = true
 }
 
+variable "db_client_security_group_ids" {
+  description = "Additional security group IDs allowed to connect to MySQL."
+  type        = list(string)
+  default     = []
+}
+
 variable "aws_region" {
   description = "AWS region for CloudWatch logs configuration."
   type        = string

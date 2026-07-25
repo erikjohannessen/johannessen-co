@@ -84,6 +84,18 @@ resource "aws_security_group" "db" {
     }
   }
 
+  dynamic "ingress" {
+    for_each = var.db_client_security_group_ids
+
+    content {
+      description     = "MySQL from additional client security groups"
+      from_port       = 3306
+      to_port         = 3306
+      protocol        = "tcp"
+      security_groups = [ingress.value]
+    }
+  }
+
   egress {
     from_port   = 0
     to_port     = 0

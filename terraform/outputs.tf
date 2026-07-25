@@ -43,9 +43,29 @@ output "test_db_instance_identifier" {
   value       = module.ghost_test.db_instance_identifier
 }
 
+output "test_db_endpoint" {
+  description = "RDS endpoint of the test database."
+  value       = module.ghost_test.db_endpoint
+}
+
 output "prod_db_instance_identifier" {
   description = "RDS identifier of the production database."
   value       = module.ghost_prod.db_instance_identifier
+}
+
+output "prod_db_endpoint" {
+  description = "RDS endpoint of the production database."
+  value       = module.ghost_prod.db_endpoint
+}
+
+output "test_ssm_tunnel_instance_id" {
+  description = "Instance ID of the test SSM tunnel host."
+  value       = aws_instance.ssm_tunnel_test.id
+}
+
+output "prod_ssm_tunnel_instance_id" {
+  description = "Instance ID of the production SSM tunnel host."
+  value       = aws_instance.ssm_tunnel_prod.id
 }
 
 output "test_db_password" {
