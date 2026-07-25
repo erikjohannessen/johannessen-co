@@ -98,6 +98,10 @@ resource "aws_instance" "ssm_tunnel_test" {
   iam_instance_profile        = aws_iam_instance_profile.ssm_tunnel.name
   associate_public_ip_address = true
 
+  metadata_options {
+    http_tokens = "required"
+  }
+
   tags = {
     Name        = "ghost-test-ssm-tunnel"
     Environment = "test"
@@ -112,6 +116,10 @@ resource "aws_instance" "ssm_tunnel_prod" {
   vpc_security_group_ids      = [aws_security_group.ssm_tunnel_prod.id]
   iam_instance_profile        = aws_iam_instance_profile.ssm_tunnel.name
   associate_public_ip_address = true
+
+  metadata_options {
+    http_tokens = "required"
+  }
 
   tags = {
     Name        = "ghost-prod-ssm-tunnel"
