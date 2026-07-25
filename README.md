@@ -28,6 +28,7 @@ For each environment:
   - `AWS_ROLE_NAME` (Role Name for the AWS_ROLE_ARN, e.g. `GitHubActionsRole`)
   - `AWS_REGION` (for example `us-east-1`)
   - `GHOST_IMAGE` (Container image to use for ghost, default `ghost:6-alpine`)
+  - `LOCAL_DEV_IP` (optional public IPv4 for temporary MySQL access from your machine, for example `203.0.113.10`)
   - `TF_STATE_BUCKET` (S3 bucket for Terraform state; plan and apply are skipped when unset)
   - `TF_STATE_KEY` (optional, default `ghost/terraform.tfstate`)
 - GitHub repository secret (Settings → Secrets and variables → Actions → Secrets):
@@ -43,6 +44,7 @@ terraform init \
   -backend-config="key=ghost/terraform.tfstate" \
   -backend-config="region=us-east-1"
 export TF_VAR_db_password="<db-password>"
+export TF_VAR_local_dev_ip="<your-public-ip>" # optional, no /32 suffix
 terraform plan
 terraform apply
 ```
@@ -64,6 +66,7 @@ Workflow files:
 
 - Pull requests: `terraform fmt -check`, `terraform validate`, and `terraform plan` (plan requires `TF_STATE_BUCKET`)
 - Push to `main`: `terraform apply -auto-approve` (requires `TF_STATE_BUCKET`)
+- Manual push workflow runs support an optional `local_dev_ip` input (without `/32`) that overrides `LOCAL_DEV_IP` for that run.
 - State is stored in S3 with S3-native locking (`use_lockfile=true`) to keep GitHub Actions deployments consistent across runs.
 
 ## GitHub Actions Role Permissions

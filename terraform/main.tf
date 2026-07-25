@@ -12,6 +12,7 @@ module "ghost_test" {
   aws_region      = var.aws_region
   db_password     = var.db_password
   ghost_image     = var.ghost_image
+  local_dev_ip    = var.local_dev_ip
 }
 
 module "ghost_prod" {
@@ -23,6 +24,7 @@ module "ghost_prod" {
   aws_region      = var.aws_region
   db_password     = var.db_password
   ghost_image     = var.ghost_image
+  local_dev_ip    = var.local_dev_ip
 }
 
 resource "aws_route53_record" "ghost_test" {

@@ -6,6 +6,12 @@ on:
     paths:
       - "terraform/**"
       - ".github/workflows/**"
+  workflow_dispatch:
+    inputs:
+      local_dev_ip:
+        description: "Optional public IPv4 for MySQL access (without /32)"
+        required: false
+        type: string
 
 permissions:
   id-token: write
@@ -37,6 +43,20 @@ jobs:
       - name: Set ghost_image variable if configured
         if: ${{ vars.GHOST_IMAGE != '' }}
         run: echo "TF_VAR_ghost_image=${{ vars.GHOST_IMAGE }}" >> $GITHUB_ENV
+
+      - name: Set local_dev_ip variable if configured
+        env:
+          INPUT_LOCAL_DEV_IP: ${{ github.event.inputs.local_dev_ip || '' }}
+          VAR_LOCAL_DEV_IP: ${{ vars.LOCAL_DEV_IP || '' }}
+        run: |
+          local_dev_ip="$INPUT_LOCAL_DEV_IP"
+          if [ -z "$local_dev_ip" ]; then
+            local_dev_ip="$VAR_LOCAL_DEV_IP"
+          fi
+
+          if [ -n "$local_dev_ip" ]; then
+            echo "TF_VAR_local_dev_ip=$local_dev_ip" >> $GITHUB_ENV
+          fi
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
