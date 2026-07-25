@@ -65,6 +65,7 @@ resource "aws_iam_role_policy" "github_actions" {
           "ec2:TerminateInstances",
           "ec2:UpdateSecurityGroupRuleDescriptionsEgress",
           "ec2:UpdateSecurityGroupRuleDescriptionsIngress",
+          "ec2:DescribeAvailabilityZones",
         ]
         Resource = "*"
       },
