@@ -109,7 +109,7 @@ resource "aws_db_instance" "ghost" {
   skip_final_snapshot         = true
   deletion_protection         = false
   backup_retention_period     = 7
-  publicly_accessible         = false
+  publicly_accessible         = true
   db_subnet_group_name        = aws_db_subnet_group.ghost.name
   vpc_security_group_ids      = [aws_security_group.db.id]
   allow_major_version_upgrade = true
