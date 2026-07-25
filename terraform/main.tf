@@ -7,10 +7,29 @@ data "aws_vpc" "default" {
   default = true
 }
 
-data "aws_subnets" "default" {
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
+data "aws_subnets" "test_az" {
   filter {
     name   = "vpc-id"
     values = [data.aws_vpc.default.id]
+  }
+  filter {
+    name   = "availability-zone"
+    values = [sort(data.aws_availability_zones.available.names)[0]]
+  }
+}
+
+data "aws_subnets" "prod_az" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
+  filter {
+    name   = "availability-zone"
+    values = [sort(data.aws_availability_zones.available.names)[1]]
   }
 }
 
@@ -32,11 +51,6 @@ data "aws_ami" "amazon_linux_2023" {
     name   = "virtualization-type"
     values = ["hvm"]
   }
-}
-
-locals {
-  default_subnet_ids = sort(data.aws_subnets.default.ids)
-  prod_subnet_id     = length(local.default_subnet_ids) > 1 ? local.default_subnet_ids[1] : local.default_subnet_ids[0]
 }
 
 resource "aws_iam_role" "ssm_tunnel" {
@@ -93,7 +107,7 @@ resource "aws_security_group" "ssm_tunnel_prod" {
 resource "aws_instance" "ssm_tunnel_test" {
   ami                         = data.aws_ami.amazon_linux_2023.id
   instance_type               = var.ssm_tunnel_instance_type
-  subnet_id                   = local.default_subnet_ids[0]
+  subnet_id                   = tolist(data.aws_subnets.test_az.ids)[0]
   vpc_security_group_ids      = [aws_security_group.ssm_tunnel_test.id]
   iam_instance_profile        = aws_iam_instance_profile.ssm_tunnel.name
   associate_public_ip_address = true
@@ -108,7 +122,7 @@ resource "aws_instance" "ssm_tunnel_test" {
 resource "aws_instance" "ssm_tunnel_prod" {
   ami                         = data.aws_ami.amazon_linux_2023.id
   instance_type               = var.ssm_tunnel_instance_type
-  subnet_id                   = local.prod_subnet_id
+  subnet_id                   = tolist(data.aws_subnets.prod_az.ids)[0]
   vpc_security_group_ids      = [aws_security_group.ssm_tunnel_prod.id]
   iam_instance_profile        = aws_iam_instance_profile.ssm_tunnel.name
   associate_public_ip_address = true
