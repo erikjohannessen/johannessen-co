@@ -23,6 +23,16 @@ output "db_instance_identifier" {
   value       = aws_db_instance.ghost.identifier
 }
 
+output "db_endpoint" {
+  description = "RDS endpoint address."
+  value       = aws_db_instance.ghost.address
+}
+
+output "db_security_group_id" {
+  description = "Security group ID attached to the RDS instance."
+  value       = aws_security_group.db.id
+}
+
 output "database_password" {
   description = "Configured MySQL password."
   value       = var.db_password

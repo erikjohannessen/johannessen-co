@@ -15,6 +15,7 @@ For each environment:
 - Application Load Balancer (ALB)
 - ACM certificate validated via Route53 DNS
 - RDS MySQL database
+- Dedicated EC2 SSM tunnel host for private DB access
 - Security groups and networking in your default VPC
 - Route53 `A` record
 - IAM roles for ECS task execution
@@ -23,6 +24,7 @@ For each environment:
 
 - AWS account with Route53 hosted zone for `johannessen.co`
 - Terraform >= 1.10
+- AWS CLI v2 with Session Manager plugin installed locally
 - GitHub repository variables (Settings → Secrets and variables → Actions → Variables):
   - `AWS_ROLE_ARN` (OIDC assumable role ARN for GitHub Actions, e.g. `arn:aws:iam::123456789012:role/GitHubActionsRole`)
   - `AWS_ROLE_NAME` (Role Name for the AWS_ROLE_ARN, e.g. `GitHubActionsRole`)
@@ -106,3 +108,28 @@ If your state bucket uses a customer-managed KMS key, also include:
 ## Notes
 
 - Ghost is configured with `https://<domain>` and ALB redirects HTTP to HTTPS.
+
+## Connect to RDS via SSM
+
+The stack now creates one SSM tunnel instance per environment and allows MySQL access to each RDS instance only from its matching tunnel host security group.
+
+Fetch required outputs:
+
+```bash
+cd terraform
+TEST_TUNNEL_ID=$(terraform output -raw test_ssm_tunnel_instance_id)
+TEST_DB_ENDPOINT=$(terraform output -raw test_db_endpoint)
+PROD_TUNNEL_ID=$(terraform output -raw prod_ssm_tunnel_instance_id)
+PROD_DB_ENDPOINT=$(terraform output -raw prod_db_endpoint)
+```
+
+Start a local tunnel to test:
+
+```bash
+aws ssm start-session \
+  --target "$TEST_TUNNEL_ID" \
+  --document-name AWS-StartPortForwardingSessionToRemoteHost \
+  --parameters '{"host":["'"$TEST_DB_ENDPOINT"'"],"portNumber":["3306"],"localPortNumber":["13306"]}'
+```
+
+In another terminal, connect your MySQL client to `127.0.0.1:13306` using the existing database credentials.
