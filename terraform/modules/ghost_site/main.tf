@@ -36,7 +36,7 @@ data "aws_ami" "amazon_linux_2023" {
 
 locals {
   name_prefix        = "ghost-${var.environment}"
-  domain_name        = "{var.subdomain}.${var.route53_zone_name}"
+  domain_name        = "${var.subdomain}.${var.route53_zone_name}"
   default_subnet_ids = sort(data.aws_subnets.default.ids)
 }
 
