@@ -26,6 +26,7 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+      TF_VAR_route53_zone_name: johannessen.co
       TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
       TF_VAR_aws_role_name: ${{ vars.AWS_ROLE_NAME }}
       TF_VAR_tf_state_bucket: ${{ vars.TF_STATE_BUCKET }}
@@ -82,51 +83,68 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
-      - name: Terraform Plan
+      - name: Terraform Plan Test Environment
         id: plan
-        run: terraform plan -input=false -out=tfplan -no-color 2>&1 | tee "$GITHUB_WORKSPACE/plan.txt"; exit ${PIPESTATUS[0]}
+        run: terraform plan -var "environment=test" -var "subdomain=test" -input=false -out=tfplan-test -no-color 2>&1 | tee "$GITHUB_WORKSPACE/plan.txt"; exit ${PIPESTATUS[0]}
 
-      - name: Terraform Apply
-        run: terraform apply -auto-approve -no-color tfplan
+      - name: Terraform Apply Test Environment
+        run: terraform apply -auto-approve -no-color tfplan-test
 
-      - name: Wait for ECS services
+      - name: Wait for Test RDS instances
         run: |
-          test_cluster=$(terraform output -raw test_ecs_cluster_name)
-          test_service=$(terraform output -raw test_ecs_service_name)
-          prod_cluster=$(terraform output -raw prod_ecs_cluster_name)
-          prod_service=$(terraform output -raw prod_ecs_service_name)
-          echo "Waiting for ECS service to become stable: $test_cluster / $test_service"
-          aws ecs wait services-stable --cluster "$test_cluster" --services "$test_service"
-          echo "Waiting for ECS service to become stable: $prod_cluster / $prod_service"
-          aws ecs wait services-stable --cluster "$prod_cluster" --services "$prod_service"
+          db_id=$(terraform output -raw db_instance_identifier)
+          echo "Waiting for RDS instance: $db_id"
+          aws rds wait db-instance-available --db-instance-identifier "$db_id"
 
-      - name: Wait for RDS instances
+      - name: Wait for Test ECS services
         run: |
-          test_db_id=$(terraform output -raw test_db_instance_identifier)
-          prod_db_id=$(terraform output -raw prod_db_instance_identifier)
-          echo "Waiting for RDS instance: $test_db_id"
-          aws rds wait db-instance-available --db-instance-identifier "$test_db_id"
-          echo "Waiting for RDS instance: $prod_db_id"
-          aws rds wait db-instance-available --db-instance-identifier "$prod_db_id"
+          cluster=$(terraform output -raw ecs_cluster_name)
+          service=$(terraform output -raw ecs_service_name)
+          echo "Waiting for ECS service to become stable: $cluster / $service"
+          aws ecs wait services-stable --cluster "$cluster" --services "$service"
 
-      - name: Smoke Test
+      - name: Test Environment Smoke Test
         run: |
-          pairs=(
-            "test.johannessen.co"
-            "blog.johannessen.co"
-          )
-          for host in "${pairs[@]}"; do
-            case "$host" in
-               test.johannessen.co) alb_dns_name=$(terraform output -raw test_alb_dns_name) ;;
-               blog.johannessen.co) alb_dns_name=$(terraform output -raw prod_alb_dns_name) ;;
-               *) echo "Unknown host: $host" && exit 1 ;;
-            esac
-            echo "Smoke testing https://$host (via $alb_dns_name)..."
-            body=$(curl -sL --max-time 20 --connect-to "$host:443:$alb_dns_name:443" "https://$host/")
-            if echo "$body" | grep -qi "<html"; then
-              echo "✓ $host returned HTML content"
-            else
-              echo "✗ $host did not return HTML content"
-              exit 1
-            fi
-          done
+          host=$(terraform output -raw site_url)
+          alb_dns_name=$(terraform output -raw alb_dns_name)
+          echo "Smoke testing https://$host (via $alb_dns_name)..."
+          body=$(curl -sL --max-time 20 --connect-to "$host:443:$alb_dns_name:443" "https://$host/")
+          if echo "$body" | grep -qi "<html"; then
+            echo "✓ $host returned HTML content"
+          else
+            echo "✗ $host did not return HTML content"
+            exit 1
+          fi
+
+      - name: Terraform Plan Prod Environment
+        id: plan-prod
+        run: terraform plan -var "environment=prod" -var "subdomain=blog" -input=false -out=tfplan-prod -no-color 2>&1 | tee "$GITHUB_WORKSPACE/plan.txt"; exit ${PIPESTATUS[0]}
+
+      - name: Terraform Apply Prod Environment
+        run: terraform apply -auto-approve -no-color tfplan-prod
+
+      - name: Wait for Prod RDS instances
+        run: |
+          db_id=$(terraform output -raw db_instance_identifier)
+          echo "Waiting for RDS instance: $db_id"
+          aws rds wait db-instance-available --db-instance-identifier "$db_id"
+
+      - name: Wait for Prod ECS services
+        run: |
+          cluster=$(terraform output -raw ecs_cluster_name)
+          service=$(terraform output -raw ecs_service_name)
+          echo "Waiting for ECS service to become stable: $cluster / $service"
+          aws ecs wait services-stable --cluster "$cluster" --services "$service"
+
+      - name: Prod Environment Smoke Test
+        run: |
+          host=$(terraform output -raw site_url)
+          alb_dns_name=$(terraform output -raw alb_dns_name)
+          echo "Smoke testing https://$host (via $alb_dns_name)..."
+          body=$(curl -sL --max-time 20 --connect-to "$host:443:$alb_dns_name:443" "https://$host/")
+          if echo "$body" | grep -qi "<html"; then
+            echo "✓ $host returned HTML content"
+          else
+            echo "✗ $host did not return HTML content"
+            exit 1
+          fi

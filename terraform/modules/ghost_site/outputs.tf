@@ -1,3 +1,8 @@
+output "fqdn" {
+  description = "FQDN for the Ghost site."
+  value       = aws_route53_record.ghost.fqdn
+}
+
 output "alb_dns_name" {
   description = "Public DNS name of the Ghost ALB."
   value       = aws_lb.ghost.dns_name

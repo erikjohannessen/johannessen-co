@@ -23,30 +23,16 @@ resource "aws_iam_instance_profile" "ssm_tunnel" {
   role = aws_iam_role.ssm_tunnel.name
 }
 
-module "ghost_test" {
+module "ghost_site" {
   source = "./modules/ghost_site"
 
   providers = {
-    aws = aws.test
+    aws = var.environment == "prod" ? aws : aws.test
   }
 
-  environment                 = "test"
+  environment                 = var.environment
   route53_zone_name           = var.route53_zone_name
-  subdomain                   = "test"
-  aws_region                  = var.aws_region
-  db_password                 = var.db_password
-  ghost_image                 = var.ghost_image
-  ssm_tunnel_instance_type    = var.ssm_tunnel_instance_type
-  ssm_tunnel_instance_profile = aws_iam_instance_profile.ssm_tunnel.name
-  local_dev_ip                = var.local_dev_ip
-}
-
-module "ghost_prod" {
-  source = "./modules/ghost_site"
-
-  environment                 = "prod"
-  route53_zone_name           = var.route53_zone_name
-  subdomain                   = "blog"
+  subdomain                   = var.subdomain
   aws_region                  = var.aws_region
   db_password                 = var.db_password
   ghost_image                 = var.ghost_image
