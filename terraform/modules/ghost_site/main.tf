@@ -56,7 +56,7 @@ resource "aws_security_group" "ssm_tunnel" {
 resource "aws_instance" "ssm_tunnel" {
   ami                         = data.aws_ami.amazon_linux_2023.id
   instance_type               = var.ssm_tunnel_instance_type
-  subnet_id                   = local.default_subnet_ids[0]
+  subnet_id                   = var.environment == "prod" && length(local.default_subnet_ids) > 1 ? local.default_subnet_ids[1] : local.default_subnet_ids[0]
   vpc_security_group_ids      = [aws_security_group.ssm_tunnel.id]
   iam_instance_profile        = var.ssm_tunnel_instance_profile
   associate_public_ip_address = true
