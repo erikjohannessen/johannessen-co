@@ -12,6 +12,19 @@ terraform {
 }
 
 provider "aws" {
+  alias = "test"
+
+  region = var.aws_region
+
+  default_tags {
+    tags = {
+      terraform   = "true"
+      environment = var.environment
+    }
+  }
+}
+
+provider "aws" {
   region = var.aws_region
 
   default_tags {
