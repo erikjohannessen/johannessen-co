@@ -26,6 +26,10 @@ resource "aws_iam_instance_profile" "ssm_tunnel" {
 module "ghost_test" {
   source = "./modules/ghost_site"
 
+  providers = {
+    aws = aws.test
+  }
+
   environment                 = "test"
   route53_zone_name           = var.route53_zone_name
   subdomain                   = "test"
