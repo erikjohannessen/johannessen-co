@@ -33,6 +33,11 @@ output "db_security_group_id" {
   value       = aws_security_group.db.id
 }
 
+output "ssm_tunnel_instance_id" {
+  description = "Instance ID of the SSM tunnel host."
+  value       = aws_instance.ssm_tunnel.id
+}
+
 output "database_password" {
   description = "Configured MySQL password."
   value       = var.db_password
