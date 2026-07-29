@@ -1,15 +1,15 @@
-variable "name_prefix" {
-  description = "Resource name prefix."
+variable "environment" {
+  description = "Environment name for this Ghost site."
   type        = string
 }
 
-variable "domain_name" {
-  description = "Environment domain for Ghost URL."
+variable "route53_zone_name" {
+  description = "Route53 hosted zone name."
   type        = string
 }
 
-variable "route53_zone_id" {
-  description = "Route53 hosted zone ID used for ACM DNS validation."
+variable "subdomain" {
+  description = "Subdomain to use for this Ghost site."
   type        = string
 }
 
@@ -26,12 +26,6 @@ variable "local_dev_ip" {
   nullable    = true
 }
 
-variable "db_client_security_group_ids" {
-  description = "Additional security group IDs allowed to connect to MySQL."
-  type        = list(string)
-  default     = []
-}
-
 variable "aws_region" {
   description = "AWS region for CloudWatch logs configuration."
   type        = string
@@ -46,6 +40,17 @@ variable "ghost_image" {
     condition     = length(trimspace(var.ghost_image)) > 0
     error_message = "ghost_image must be a non-empty container image reference (e.g. ghost:6-alpine)."
   }
+}
+
+variable "ssm_tunnel_instance_type" {
+  description = "Instance type used for SSM database tunnel hosts."
+  type        = string
+  default     = "t3.nano"
+}
+
+variable "ssm_tunnel_instance_profile" {
+  description = "IAM Instance Profile used when connecting to SSM tunnel hosts."
+  type        = string
 }
 
 variable "task_cpu" {

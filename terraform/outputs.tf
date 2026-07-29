@@ -8,6 +8,16 @@ output "prod_site_url" {
   value       = "https://blog.johannessen.co"
 }
 
+output "test_site_dns_name" {
+  description = "Test Ghost DNS."
+  value       = module.ghost_test.alb_dns_name
+}
+
+output "prod_site_dns_name" {
+  description = "Production Ghost DNS."
+  value       = module.ghost_prod.alb_dns_name
+}
+
 output "test_alb_dns_name" {
   description = "ALB DNS name of the test Ghost service."
   value       = module.ghost_test.alb_dns_name
@@ -60,12 +70,12 @@ output "prod_db_endpoint" {
 
 output "test_ssm_tunnel_instance_id" {
   description = "Instance ID of the test SSM tunnel host."
-  value       = aws_instance.ssm_tunnel_test.id
+  value       = module.ghost_test.ssm_tunnel_instance_id
 }
 
 output "prod_ssm_tunnel_instance_id" {
   description = "Instance ID of the production SSM tunnel host."
-  value       = aws_instance.ssm_tunnel_prod.id
+  value       = module.ghost_prod.ssm_tunnel_instance_id
 }
 
 output "test_db_password" {

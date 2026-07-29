@@ -1,3 +1,8 @@
+data "aws_route53_zone" "primary" {
+  name         = "${var.route53_zone_name}."
+  private_zone = false
+}
+
 data "aws_vpc" "default" {
   default = true
 }
@@ -9,8 +14,60 @@ data "aws_subnets" "default" {
   }
 }
 
+data "aws_ami" "amazon_linux_2023" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-2023*-x86_64"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
+locals {
+  name_prefix        = "ghost-${var.environment}"
+  domain_name        = "${var.subdomain}.${var.route53_zone_name}"
+  default_subnet_ids = sort(data.aws_subnets.default.ids)
+}
+
+resource "aws_security_group" "ssm_tunnel" {
+  name_prefix = "${local.name_prefix}-ssm-tunnel-"
+  description = "SSM tunnel host security group for database access"
+  vpc_id      = data.aws_vpc.default.id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_instance" "ssm_tunnel" {
+  ami                         = data.aws_ami.amazon_linux_2023.id
+  instance_type               = var.ssm_tunnel_instance_type
+  subnet_id                   = var.environment == "prod" && length(local.default_subnet_ids) > 1 ? local.default_subnet_ids[1] : local.default_subnet_ids[0]
+  vpc_security_group_ids      = [aws_security_group.ssm_tunnel.id]
+  iam_instance_profile        = var.ssm_tunnel_instance_profile
+  associate_public_ip_address = true
+
+  metadata_options {
+    http_tokens = "required"
+  }
+}
+
 resource "aws_security_group" "alb" {
-  name_prefix = "${var.name_prefix}-alb-"
+  name_prefix = "${local.name_prefix}-alb-"
   description = "Ghost ALB security group"
   vpc_id      = data.aws_vpc.default.id
 
@@ -39,7 +96,7 @@ resource "aws_security_group" "alb" {
 }
 
 resource "aws_security_group" "ecs_tasks" {
-  name_prefix = "${var.name_prefix}-ecs-"
+  name_prefix = "${local.name_prefix}-ecs-"
   description = "Ghost ECS task security group"
   vpc_id      = data.aws_vpc.default.id
 
@@ -60,7 +117,7 @@ resource "aws_security_group" "ecs_tasks" {
 }
 
 resource "aws_security_group" "db" {
-  name_prefix = "${var.name_prefix}-db-"
+  name_prefix = "${local.name_prefix}-db-"
   description = "MySQL security group"
   vpc_id      = data.aws_vpc.default.id
 
@@ -70,6 +127,14 @@ resource "aws_security_group" "db" {
     to_port         = 3306
     protocol        = "tcp"
     security_groups = [aws_security_group.ecs_tasks.id]
+  }
+
+  ingress {
+    description     = "MySQL from SSM Tunnel instances"
+    from_port       = 3306
+    to_port         = 3306
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ssm_tunnel.id]
   }
 
   dynamic "ingress" {
@@ -84,18 +149,6 @@ resource "aws_security_group" "db" {
     }
   }
 
-  dynamic "ingress" {
-    for_each = var.db_client_security_group_ids
-
-    content {
-      description     = "MySQL from additional client security groups"
-      from_port       = 3306
-      to_port         = 3306
-      protocol        = "tcp"
-      security_groups = [ingress.value]
-    }
-  }
-
   egress {
     from_port   = 0
     to_port     = 0
@@ -105,12 +158,12 @@ resource "aws_security_group" "db" {
 }
 
 resource "aws_db_subnet_group" "ghost" {
-  name       = "${var.name_prefix}-db-subnets"
+  name       = "${local.name_prefix}-db-subnets"
   subnet_ids = data.aws_subnets.default.ids
 }
 
 resource "aws_db_instance" "ghost" {
-  identifier_prefix           = "${var.name_prefix}-mysql"
+  identifier_prefix           = "${local.name_prefix}-mysql"
   allocated_storage           = 20
   db_name                     = "ghost"
   engine                      = "mysql"
@@ -133,16 +186,16 @@ resource "aws_db_instance" "ghost" {
 }
 
 resource "aws_ecs_cluster" "ghost" {
-  name = "${var.name_prefix}-cluster"
+  name = "${local.name_prefix}-cluster"
 }
 
 resource "aws_cloudwatch_log_group" "ghost" {
-  name              = "/ecs/${var.name_prefix}-ghost"
+  name              = "/ecs/${local.name_prefix}-ghost"
   retention_in_days = 14
 }
 
 resource "aws_iam_role" "ecs_task_execution" {
-  name = "${var.name_prefix}-ecs-task-exec-role"
+  name = "${local.name_prefix}-ecs-task-exec-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -162,15 +215,27 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
 }
 
 resource "aws_lb" "ghost" {
-  name               = "${var.name_prefix}-alb"
+  name               = "${local.name_prefix}-alb"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
   subnets            = data.aws_subnets.default.ids
 }
 
+resource "aws_route53_record" "ghost" {
+  zone_id = data.aws_route53_zone.primary.zone_id
+  name    = local.domain_name
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.ghost.dns_name
+    zone_id                = aws_lb.ghost.zone_id
+    evaluate_target_health = true
+  }
+}
+
 resource "aws_acm_certificate" "ghost" {
-  domain_name       = var.domain_name
+  domain_name       = local.domain_name
   validation_method = "DNS"
 
   lifecycle {
@@ -187,7 +252,7 @@ resource "aws_route53_record" "ghost_cert_validation" {
     }
   }
 
-  zone_id         = var.route53_zone_id
+  zone_id         = data.aws_route53_zone.primary.zone_id
   name            = each.value.name
   type            = each.value.type
   ttl             = 60
@@ -201,7 +266,7 @@ resource "aws_acm_certificate_validation" "ghost" {
 }
 
 resource "aws_lb_target_group" "ghost" {
-  name        = "${var.name_prefix}-tg"
+  name        = "${local.name_prefix}-tg"
   port        = 2368
   protocol    = "HTTP"
   target_type = "ip"
@@ -248,7 +313,7 @@ resource "aws_lb_listener" "https" {
 }
 
 resource "aws_ecs_task_definition" "ghost" {
-  family                   = "${var.name_prefix}-ghost"
+  family                   = "${local.name_prefix}-ghost"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.task_cpu
@@ -268,7 +333,7 @@ resource "aws_ecs_task_definition" "ghost" {
         }
       ]
       environment = [
-        { name = "url", value = "https://${var.domain_name}" },
+        { name = "url", value = "https://${local.domain_name}" },
         { name = "database__client", value = "mysql" },
         { name = "database__connection__host", value = aws_db_instance.ghost.address },
         { name = "database__connection__user", value = "ghostuser" },
@@ -288,7 +353,7 @@ resource "aws_ecs_task_definition" "ghost" {
 }
 
 resource "aws_ecs_service" "ghost" {
-  name            = "${var.name_prefix}-service"
+  name            = "${local.name_prefix}-service"
   cluster         = aws_ecs_cluster.ghost.id
   task_definition = aws_ecs_task_definition.ghost.arn
   desired_count   = var.desired_count
