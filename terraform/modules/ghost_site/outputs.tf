@@ -1,5 +1,5 @@
-output "site_url" {
-  description = "URL where Ghost is hosted."
+output "hostname" {
+  description = "Hostname for Ghost site."
   value       = trim(aws_route53_record.ghost.fqdn, ".")
 }
 

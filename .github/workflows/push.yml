@@ -109,7 +109,7 @@ jobs:
 
       - name: Test Environment Smoke Test
         run: |
-          host=$(terraform output -raw site_url)
+          host=$(terraform output -raw hostname)
           alb_dns_name=$(terraform output -raw alb_dns_name)
           echo "Smoke testing https://$host (via $alb_dns_name)..."
           body=$(curl -sL --max-time 20 --connect-to "$host:443:$alb_dns_name:443" "https://$host/")
@@ -146,7 +146,7 @@ jobs:
 
       - name: Prod Environment Smoke Test
         run: |
-          host=$(terraform output -raw site_url)
+          host=$(terraform output -raw hostname)
           alb_dns_name=$(terraform output -raw alb_dns_name)
           echo "Smoke testing https://$host (via $alb_dns_name)..."
           body=$(curl -sL --max-time 20 --connect-to "$host:443:$alb_dns_name:443" "https://$host/")

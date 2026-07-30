@@ -1,6 +1,6 @@
-output "site_url" {
-  description = "URL where Ghost is hosted."
-  value       = module.ghost_site.site_url
+output "hostname" {
+  description = "Hostname for Ghost site."
+  value       = module.ghost_site.hostname
 }
 
 output "alb_dns_name" {
