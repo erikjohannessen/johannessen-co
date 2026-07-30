@@ -83,6 +83,10 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
+      # Selects the test workspace. If it doesn't exist yet, it creates it.
+      - name: Select or Create Test Workspace
+        run: terraform workspace select test || terraform workspace new test
+
       - name: Terraform Plan Test Environment
         id: plan
         run: terraform plan -var "environment=test" -var "subdomain=test" -input=false -out=tfplan-test -no-color 2>&1 | tee "$GITHUB_WORKSPACE/plan.txt"; exit ${PIPESTATUS[0]}
@@ -115,6 +119,10 @@ jobs:
             echo "✗ $host did not return HTML content"
             exit 1
           fi
+
+      # Selects the prod workspace. If it doesn't exist yet, it creates it.
+      - name: Select or Create Prod Workspace
+        run: terraform workspace select prod || terraform workspace new prod
 
       - name: Terraform Plan Prod Environment
         id: plan-prod

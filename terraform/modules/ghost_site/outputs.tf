@@ -1,6 +1,6 @@
-output "fqdn" {
-  description = "FQDN for the Ghost site."
-  value       = aws_route53_record.ghost.fqdn
+output "site_url" {
+  description = "URL where Ghost is hosted."
+  value       = trim(aws_route53_record.ghost.fqdn, ".")
 }
 
 output "alb_dns_name" {

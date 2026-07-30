@@ -1,6 +1,6 @@
 output "site_url" {
-  description = "Test Ghost URL."
-  value       = module.ghost_site.fqdn
+  description = "URL where Ghost is hosted."
+  value       = module.ghost_site.site_url
 }
 
 output "alb_dns_name" {
