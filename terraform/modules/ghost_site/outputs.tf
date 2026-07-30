@@ -1,3 +1,8 @@
+output "hostname" {
+  description = "Hostname for Ghost site."
+  value       = trim(aws_route53_record.ghost.fqdn, ".")
+}
+
 output "alb_dns_name" {
   description = "Public DNS name of the Ghost ALB."
   value       = aws_lb.ghost.dns_name

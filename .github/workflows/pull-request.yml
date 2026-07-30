@@ -20,6 +20,7 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+      TF_VAR_route53_zone_name: johannessen.co
       TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
       TF_VAR_aws_role_name: ${{ vars.AWS_ROLE_NAME }}
       TF_VAR_tf_state_bucket: ${{ vars.TF_STATE_BUCKET }}
@@ -65,11 +66,17 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
+      # Selects the test workspace. If it doesn't exist yet, it creates it.
+      - name: Select or Create Test Workspace
+        run: terraform workspace select test || terraform workspace new test
+
       - name: Terraform Plan
         id: plan
         run: |
           export TF_LOG=DEBUG TF_LOG_PATH="$GITHUB_WORKSPACE/terraform-debug.log"
-          terraform plan -input=false -out=tfplan -no-color 2>&1 | tee "$GITHUB_WORKSPACE/plan.txt"; exit ${PIPESTATUS[0]}
+          terraform plan -var "environment=test" -var "subdomain=test" \
+            -input=false -out=tfplan -no-color 2>&1 \
+            | tee "$GITHUB_WORKSPACE/plan.txt"; exit ${PIPESTATUS[0]}
 
       - name: Post Plan to PR
         if: always() && steps.plan.outcome != 'skipped'

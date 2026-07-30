@@ -1,92 +1,40 @@
-output "test_site_url" {
-  description = "Test Ghost URL."
-  value       = "https://test.johannessen.co"
+output "hostname" {
+  description = "Hostname for Ghost site."
+  value       = module.ghost_site.hostname
 }
 
-output "prod_site_url" {
-  description = "Production Ghost URL."
-  value       = "https://blog.johannessen.co"
+output "alb_dns_name" {
+  description = "ALB DNS name of the Ghost service."
+  value       = module.ghost_site.alb_dns_name
 }
 
-output "test_site_dns_name" {
-  description = "Test Ghost DNS."
-  value       = module.ghost_test.alb_dns_name
+output "ecs_cluster_name" {
+  description = "ECS cluster name of the Ghost service."
+  value       = module.ghost_site.ecs_cluster_name
 }
 
-output "prod_site_dns_name" {
-  description = "Production Ghost DNS."
-  value       = module.ghost_prod.alb_dns_name
+output "ecs_service_name" {
+  description = "ECS service name of the Ghost service."
+  value       = module.ghost_site.ecs_service_name
 }
 
-output "test_alb_dns_name" {
-  description = "ALB DNS name of the test Ghost service."
-  value       = module.ghost_test.alb_dns_name
+output "db_instance_identifier" {
+  description = "RDS identifier of the database."
+  value       = module.ghost_site.db_instance_identifier
 }
 
-output "prod_alb_dns_name" {
-  description = "ALB DNS name of the production Ghost service."
-  value       = module.ghost_prod.alb_dns_name
+output "db_endpoint" {
+  description = "RDS endpoint of the database."
+  value       = module.ghost_site.db_endpoint
 }
 
-output "test_ecs_cluster_name" {
-  description = "ECS cluster name of the test Ghost service."
-  value       = module.ghost_test.ecs_cluster_name
+output "ssm_tunnel_instance_id" {
+  description = "Instance ID of the SSM tunnel host."
+  value       = module.ghost_site.ssm_tunnel_instance_id
 }
 
-output "prod_ecs_cluster_name" {
-  description = "ECS cluster name of the production Ghost service."
-  value       = module.ghost_prod.ecs_cluster_name
-}
-
-output "test_ecs_service_name" {
-  description = "ECS service name of the test Ghost service."
-  value       = module.ghost_test.ecs_service_name
-}
-
-output "prod_ecs_service_name" {
-  description = "ECS service name of the production Ghost service."
-  value       = module.ghost_prod.ecs_service_name
-}
-
-output "test_db_instance_identifier" {
-  description = "RDS identifier of the test database."
-  value       = module.ghost_test.db_instance_identifier
-}
-
-output "test_db_endpoint" {
-  description = "RDS endpoint of the test database."
-  value       = module.ghost_test.db_endpoint
-}
-
-output "prod_db_instance_identifier" {
-  description = "RDS identifier of the production database."
-  value       = module.ghost_prod.db_instance_identifier
-}
-
-output "prod_db_endpoint" {
-  description = "RDS endpoint of the production database."
-  value       = module.ghost_prod.db_endpoint
-}
-
-output "test_ssm_tunnel_instance_id" {
-  description = "Instance ID of the test SSM tunnel host."
-  value       = module.ghost_test.ssm_tunnel_instance_id
-}
-
-output "prod_ssm_tunnel_instance_id" {
-  description = "Instance ID of the production SSM tunnel host."
-  value       = module.ghost_prod.ssm_tunnel_instance_id
-}
-
-output "test_db_password" {
-  description = "Configured test database password."
-  value       = module.ghost_test.database_password
+output "db_password" {
+  description = "Configured database password."
+  value       = module.ghost_site.database_password
   sensitive   = true
 }
-
-output "prod_db_password" {
-  description = "Configured production database password."
-  value       = module.ghost_prod.database_password
-  sensitive   = true
-}
-

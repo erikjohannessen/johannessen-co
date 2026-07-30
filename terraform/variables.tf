@@ -3,10 +3,21 @@ variable "aws_region" {
   type        = string
 }
 
+variable "environment" {
+  description = "Environment for this Ghost site."
+  type        = string
+  default     = "test"
+}
+
 variable "route53_zone_name" {
   description = "Route53 hosted zone name."
   type        = string
-  default     = "johannessen.co"
+}
+
+variable "subdomain" {
+  description = "Subdomain where Ghost is hosted."
+  type        = string
+  default     = "test"
 }
 
 variable "ghost_image" {
