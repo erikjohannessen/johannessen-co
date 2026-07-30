@@ -77,12 +77,6 @@ jobs:
             -backend-config="key=${TF_STATE_KEY}" \
             -backend-config="region=${AWS_REGION}"
 
-      - name: Get default workspace
-        run: terraform workspace select default
-
-      - name: Get backup of current state
-        run: terraform state pull > backup.tfstate
-
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
 
@@ -92,10 +86,6 @@ jobs:
       # Selects the test workspace. If it doesn't exist yet, it creates it.
       - name: Select or Create Test Workspace
         run: terraform workspace select test || terraform workspace new test
-
-      # temporarily apply the backup state to the test workspace so that the plan can be generated correctly
-      - name: Apply backup state to Test workspace
-        run: terraform state push -force backup.tfstate
 
       - name: Terraform Plan Test Environment
         id: plan
@@ -133,10 +123,6 @@ jobs:
       # Selects the prod workspace. If it doesn't exist yet, it creates it.
       - name: Select or Create Prod Workspace
         run: terraform workspace select prod || terraform workspace new prod
-
-      # temporarily apply the backup state to the prod workspace so that the plan can be generated correctly
-      - name: Apply backup state to Prod workspace
-        run: terraform state push -force backup.tfstate
 
       - name: Terraform Plan Prod Environment
         id: plan-prod
