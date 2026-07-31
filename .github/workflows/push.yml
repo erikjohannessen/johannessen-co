@@ -64,12 +64,12 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
-      - name: Run Terraform Plan on Common items
+      - name: Run Terraform Plan on Common Resources
         run: |
           export TF_LOG=DEBUG TF_LOG_PATH="$GITHUB_WORKSPACE/terraform-debug.log"
           terraform plan -input=false -out=tfplan-common -no-color
 
-      - name: Terraform Apply Test Environment
+      - name: Terraform Apply Common Resources
         id: apply-common
         run: |
           terraform apply -auto-approve -no-color tfplan-common

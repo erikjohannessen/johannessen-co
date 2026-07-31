@@ -1,7 +1,6 @@
 variable "environment" {
   description = "Environment for this Ghost site."
   type        = string
-  default     = "test"
 }
 
 variable "route53_zone_name" {
@@ -12,7 +11,6 @@ variable "route53_zone_name" {
 variable "subdomain" {
   description = "Subdomain where Ghost is hosted."
   type        = string
-  default     = "test"
 }
 
 variable "db_password" {
