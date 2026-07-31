@@ -19,7 +19,7 @@ provider "aws" {
   default_tags {
     tags = {
       terraform   = "true"
-      environment = "test"
+      environment = var.environment
     }
   }
 }
@@ -30,7 +30,7 @@ provider "aws" {
   default_tags {
     tags = {
       terraform   = "true"
-      environment = "common"
+      environment = var.environment
     }
   }
 }

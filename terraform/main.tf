@@ -1,13 +1,24 @@
-module "ghost_site" {
-  source = "./modules/ghost_site"
+resource "aws_iam_role" "ssm_tunnel" {
+  name = "ghost-ssm-tunnel-role"
 
-  environment                 = var.environment
-  route53_zone_name           = var.route53_zone_name
-  subdomain                   = var.subdomain
-  aws_region                  = var.aws_region
-  db_password                 = var.db_password
-  ghost_image                 = var.ghost_image
-  ssm_tunnel_instance_type    = var.ssm_tunnel_instance_type
-  ssm_tunnel_instance_profile = var.ssm_tunnel_instance_profile
-  local_dev_ip                = var.local_dev_ip
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ssm_tunnel_core" {
+  role       = aws_iam_role.ssm_tunnel.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "ssm_tunnel" {
+  name = "ghost-ssm-tunnel-instance-profile"
+  role = aws_iam_role.ssm_tunnel.name
 }

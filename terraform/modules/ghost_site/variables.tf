@@ -1,6 +1,7 @@
 variable "environment" {
-  description = "Environment name for this Ghost site."
+  description = "Environment for this Ghost site."
   type        = string
+  default     = "test"
 }
 
 variable "route53_zone_name" {
@@ -9,14 +10,20 @@ variable "route53_zone_name" {
 }
 
 variable "subdomain" {
-  description = "Subdomain to use for this Ghost site."
+  description = "Subdomain where Ghost is hosted."
   type        = string
+  default     = "test"
 }
 
 variable "db_password" {
   description = "MySQL password for Ghost database."
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9]{8,41}$", var.db_password))
+    error_message = "db_password must be 8-41 alphanumeric characters."
+  }
 }
 
 variable "local_dev_ip" {
@@ -24,16 +31,25 @@ variable "local_dev_ip" {
   type        = string
   default     = null
   nullable    = true
+
+  validation {
+    condition = var.local_dev_ip == null || can(regex(
+      "^(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}$",
+      var.local_dev_ip
+    ))
+    error_message = "local_dev_ip must be a valid IPv4 address without CIDR suffix (for example 203.0.113.10)."
+  }
 }
 
 variable "aws_region" {
-  description = "AWS region for CloudWatch logs configuration."
+  description = "AWS region for all resources."
   type        = string
 }
 
 variable "ghost_image" {
   description = "Container image for Ghost."
   type        = string
+  default     = "ghost:6-alpine"
   nullable    = false
 
   validation {
