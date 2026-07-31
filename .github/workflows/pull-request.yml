@@ -66,20 +66,18 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
-      # Selects the test workspace. If it doesn't exist yet, it creates it.
-      - name: Select or Create Test Workspace
-        run: terraform workspace select test || terraform workspace new test
+      - name: Select Default Workspace
+        run: terraform workspace select default
 
-      - name: Terraform Plan
-        id: plan
+      - name: Run Terraform Plan on Common items
+        id: default-plan
         run: |
           export TF_LOG=DEBUG TF_LOG_PATH="$GITHUB_WORKSPACE/terraform-debug.log"
-          terraform plan -var "environment=test" -var "subdomain=test" \
-            -input=false -out=tfplan -no-color 2>&1 \
-            | tee "$GITHUB_WORKSPACE/plan.txt"; exit ${PIPESTATUS[0]}
+          terraform -chdir=modules/common plan -input=false -no-color 2>&1 \
+            | tee "$GITHUB_WORKSPACE/default-plan.txt"; exit ${PIPESTATUS[0]}
 
       - name: Post Plan to PR
-        if: always() && steps.plan.outcome != 'skipped'
+        if: always() && steps.default-plan.outcome != 'skipped'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -87,10 +85,50 @@ jobs:
             const fs = require('fs');
             const path = require('path');
             const MAX_PLAN_LENGTH = 60000;
-            const plan = fs.readFileSync(path.join(process.env.GITHUB_WORKSPACE, 'plan.txt'), 'utf8');
+            const plan = fs.readFileSync(path.join(process.env.GITHUB_WORKSPACE, 'default-plan.txt'), 'utf8');
             const truncated = plan.length > MAX_PLAN_LENGTH ? plan.slice(0, MAX_PLAN_LENGTH) + '\n... (truncated)' : plan;
             const willBeReplaced = plan.includes('must be replaced') || plan.includes('will be replaced');
-            const outcome = '${{ steps.plan.outcome }}';
+            const outcome = '${{ steps.default-plan.outcome }}';
+            const header = outcome === 'failure'
+              ? '## ❌ Terraform Common Plan — plan failed'
+              : willBeReplaced
+                ? '## ⚠️ Terraform Common Plan — instance replacement detected (expect downtime)'
+                : '## ✅ Terraform Common Plan';
+            const body = `${header}\n\n<details><summary>Plan output</summary>\n\n\`\`\`\n${truncated}\n\`\`\`\n</details>`;
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
+      # Selects the test workspace. If it doesn't exist yet, it creates it.
+      - name: Select or Create Test Workspace
+        run: terraform workspace select test || terraform workspace new test
+
+      - name: Terraform Plan
+        id: test-plan
+        run: |
+          ssm_tunnel_instance_profile=$(terraform -chdir=modules/common output -raw ssm_tunnel_instance_profile)
+          export TF_LOG=DEBUG TF_LOG_PATH="$GITHUB_WORKSPACE/terraform-debug.log"
+          terraform plan -var "environment=test" -var "subdomain=test" \
+            -var "ssm_tunnel_instance_profile=$ssm_tunnel_instance_profile" \
+            -input=false -no-color 2>&1 \
+            | tee "$GITHUB_WORKSPACE/test-plan.txt"; exit ${PIPESTATUS[0]}
+
+      - name: Post Plan to PR
+        if: always() && steps.test-plan.outcome != 'skipped'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const MAX_PLAN_LENGTH = 60000;
+            const plan = fs.readFileSync(path.join(process.env.GITHUB_WORKSPACE, 'test-plan.txt'), 'utf8');
+            const truncated = plan.length > MAX_PLAN_LENGTH ? plan.slice(0, MAX_PLAN_LENGTH) + '\n... (truncated)' : plan;
+            const willBeReplaced = plan.includes('must be replaced') || plan.includes('will be replaced');
+            const outcome = '${{ steps.test-plan.outcome }}';
             const header = outcome === 'failure'
               ? '## ❌ Terraform Plan — plan failed'
               : willBeReplaced

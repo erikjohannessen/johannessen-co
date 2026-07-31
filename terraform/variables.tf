@@ -33,6 +33,11 @@ variable "ssm_tunnel_instance_type" {
   default     = "t3.nano"
 }
 
+variable "ssm_tunnel_instance_profile" {
+  description = "IAM instance profile for SSM tunnels."
+  type        = string
+}
+
 variable "db_password" {
   description = "MySQL password for Ghost databases."
   type        = string
