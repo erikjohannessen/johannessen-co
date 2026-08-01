@@ -137,18 +137,6 @@ resource "aws_security_group" "db" {
     security_groups = [aws_security_group.ssm_tunnel.id]
   }
 
-  dynamic "ingress" {
-    for_each = var.local_dev_ip == null ? [] : [var.local_dev_ip]
-
-    content {
-      description = "MySQL from local development machine"
-      from_port   = 3306
-      to_port     = 3306
-      protocol    = "tcp"
-      cidr_blocks = ["${ingress.value}/32"]
-    }
-  }
-
   egress {
     from_port   = 0
     to_port     = 0

@@ -24,21 +24,6 @@ variable "db_password" {
   }
 }
 
-variable "local_dev_ip" {
-  description = "Optional public IPv4 address for local development access to MySQL (without /32)."
-  type        = string
-  default     = null
-  nullable    = true
-
-  validation {
-    condition = var.local_dev_ip == null || can(regex(
-      "^(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}$",
-      var.local_dev_ip
-    ))
-    error_message = "local_dev_ip must be a valid IPv4 address without CIDR suffix (for example 203.0.113.10)."
-  }
-}
-
 variable "aws_region" {
   description = "AWS region for all resources."
   type        = string
