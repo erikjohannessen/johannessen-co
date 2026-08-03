@@ -11,6 +11,9 @@ permissions:
   id-token: write
   contents: read
 
+env:
+  TF_VAR_route53_zone_name: ${{ vars.ROUTE53_ZONE_NAME }}
+
 jobs:
   deploy-common:
     runs-on: ubuntu-latest
@@ -32,13 +35,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Fail if critical environment variables are not set
-        if: vars.AWS_REGION == '' || vars.AWS_ROLE_ARN == '' || vars.AWS_ROLE_NAME == '' || vars.TF_STATE_BUCKET == ''
+        if: vars.AWS_REGION == '' || vars.AWS_ACCOUNT_ID == '' || vars.AWS_ROLE_NAME == '' || vars.TF_STATE_BUCKET == ''
         run: exit 1
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AWS_ROLE_NAME }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
@@ -78,7 +81,6 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       TF_VAR_aws_region: ${{ vars.AWS_REGION }}
-      TF_VAR_route53_zone_name: johannessen.co
       TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
       TF_VAR_aws_role_name: ${{ vars.AWS_ROLE_NAME }}
       TF_VAR_tf_state_bucket: ${{ vars.TF_STATE_BUCKET }}
@@ -90,7 +92,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Fail if critical environment variables are not set
-        if: vars.AWS_REGION == '' || vars.AWS_ROLE_ARN == '' || vars.AWS_ROLE_NAME == '' || vars.TF_STATE_BUCKET == ''
+        if: vars.AWS_REGION == '' || vars.AWS_ACCOUNT_ID == '' || vars.AWS_ROLE_NAME == '' || vars.TF_STATE_BUCKET == ''
         run: exit 1
 
       - name: Set ghost_image variable if configured
@@ -100,7 +102,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AWS_ROLE_NAME }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
@@ -168,7 +170,6 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       TF_VAR_aws_region: ${{ vars.AWS_REGION }}
-      TF_VAR_route53_zone_name: johannessen.co
       TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
       TF_VAR_aws_role_name: ${{ vars.AWS_ROLE_NAME }}
       TF_VAR_tf_state_bucket: ${{ vars.TF_STATE_BUCKET }}
@@ -180,7 +181,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Fail if critical environment variables are not set
-        if: vars.AWS_REGION == '' || vars.AWS_ROLE_ARN == '' || vars.AWS_ROLE_NAME == '' || vars.TF_STATE_BUCKET == ''
+        if: vars.AWS_REGION == '' || vars.AWS_ACCOUNT_ID == '' || vars.AWS_ROLE_NAME == '' || vars.TF_STATE_BUCKET == ''
         run: exit 1
 
       - name: Set ghost_image variable if configured
@@ -190,7 +191,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AWS_ROLE_NAME }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
