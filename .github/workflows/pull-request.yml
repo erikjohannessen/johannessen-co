@@ -11,6 +11,12 @@ permissions:
   contents: read
   pull-requests: write
 
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+  TF_STATE_KEY: ${{ vars.TF_STATE_KEY || 'ghost/terraform.tfstate' }}
+  TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+
 jobs:
   plan-common:
     runs-on: ubuntu-latest
@@ -18,12 +24,8 @@ jobs:
       run:
         working-directory: terraform
     env:
-      AWS_REGION: ${{ vars.AWS_REGION }}
-      TF_VAR_aws_region: ${{ vars.AWS_REGION }}
       TF_VAR_aws_role_name: ${{ vars.AWS_ROLE_NAME }}
       TF_VAR_tf_state_bucket: ${{ vars.TF_STATE_BUCKET }}
-      TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
-      TF_STATE_KEY: ${{ vars.TF_STATE_KEY || 'ghost/terraform.tfstate' }}
     outputs:
       ssm_tunnel_instance_profile: ${{ steps.plan-common.outputs.ssm_tunnel_instance_profile }}
 
@@ -32,13 +34,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Fail if critical environment variables are not set
-        if: vars.AWS_REGION == '' || vars.AWS_ROLE_ARN == '' || vars.AWS_ROLE_NAME == '' || vars.TF_STATE_BUCKET == ''
+        if: vars.AWS_REGION == '' || vars.AWS_ACCOUNT_ID == '' || vars.AWS_ROLE_NAME == '' || vars.TF_STATE_BUCKET == ''
         run: exit 1
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AWS_ROLE_NAME }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
@@ -91,26 +93,29 @@ jobs:
               body
             });
 
-  plan-test:
+  plan-environment:
     runs-on: ubuntu-latest
+    needs: plan-common
+    strategy:
+      matrix:
+        environment: [test, prod]
+    environment: ${{ matrix.environment }}
     defaults:
       run:
         working-directory: terraform
-    needs: plan-common
     env:
-      AWS_REGION: ${{ vars.AWS_REGION }}
-      TF_VAR_aws_region: ${{ vars.AWS_REGION }}
-      TF_VAR_route53_zone_name: johannessen.co
       TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
-      TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
-      TF_STATE_KEY: ${{ vars.TF_STATE_KEY || 'ghost/terraform.tfstate' }}
+      TF_VAR_environment: ${{ matrix.environment }}
+      TF_VAR_route53_zone_name: ${{ vars.ROUTE53_ZONE_NAME }}
+      TF_VAR_subdomain: ${{ vars.SUBDOMAIN }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Fail if critical environment variables are not set
-        if: vars.AWS_REGION == '' || vars.AWS_ROLE_ARN == '' || vars.TF_STATE_BUCKET == ''
+        if: vars.AWS_REGION == '' || vars.AWS_ACCOUNT_ID == '' || vars.AWS_ROLE_NAME == '' ||
+          vars.TF_STATE_BUCKET == '' || vars.ROUTE53_ZONE_NAME == '' || vars.SUBDOMAIN == ''
         run: exit 1
 
       - name: Set ghost_image variable if configured
@@ -120,7 +125,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AWS_ROLE_NAME }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
@@ -140,21 +145,21 @@ jobs:
       - name: Terraform Validate
         run: terraform -chdir=modules/ghost_site validate
 
-      # Selects the test workspace. If it doesn't exist yet, it creates it.
-      - name: Select or Create Test Workspace
-        run: terraform -chdir=modules/ghost_site workspace select test || terraform -chdir=modules/ghost_site workspace new test
+      # Selects workspace. If it doesn't exist yet, it creates it.
+      - name: Select or Create Workspace
+        run: terraform -chdir=modules/ghost_site workspace select ${{ matrix.environment }} || terraform -chdir=modules/ghost_site workspace new ${{ matrix.environment }}
 
       - name: Terraform Plan
-        id: plan-test
+        id: plan
         run: |
           ssm_tunnel_instance_profile=${{ needs.plan-common.outputs.ssm_tunnel_instance_profile }}
           export TF_LOG=DEBUG TF_LOG_PATH="$GITHUB_WORKSPACE/terraform-debug.log"
-          terraform -chdir=modules/ghost_site plan -var "environment=test" -var "subdomain=test" \
+          terraform -chdir=modules/ghost_site plan \
             -var "ssm_tunnel_instance_profile=$ssm_tunnel_instance_profile" -input=false -no-color 2>&1 \
-            | tee "$GITHUB_WORKSPACE/test-plan.txt"; exit ${PIPESTATUS[0]}
+            | tee "$GITHUB_WORKSPACE/${{ matrix.environment }}-plan.txt"; exit ${PIPESTATUS[0]}
 
       - name: Post Plan to PR
-        if: always() && steps.plan-test.outcome != 'skipped'
+        if: always() && steps.plan.outcome != 'skipped'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -162,15 +167,15 @@ jobs:
             const fs = require('fs');
             const path = require('path');
             const MAX_PLAN_LENGTH = 60000;
-            const plan = fs.readFileSync(path.join(process.env.GITHUB_WORKSPACE, 'test-plan.txt'), 'utf8');
+            const plan = fs.readFileSync(path.join(process.env.GITHUB_WORKSPACE, '${{ matrix.environment }}-plan.txt'), 'utf8');
             const truncated = plan.length > MAX_PLAN_LENGTH ? plan.slice(0, MAX_PLAN_LENGTH) + '\n... (truncated)' : plan;
             const willBeReplaced = plan.includes('must be replaced') || plan.includes('will be replaced');
-            const outcome = '${{ steps.plan-test.outcome }}';
+            const outcome = '${{ steps.plan.outcome }}';
             const header = outcome === 'failure'
-              ? '## ❌ Terraform Plan — plan failed'
+              ? '## ❌ Terraform Plan (${{ matrix.environment }}) — plan failed'
               : willBeReplaced
-                ? '## ⚠️ Terraform Plan — instance replacement detected (expect downtime)'
-                : '## ✅ Terraform Plan';
+                ? '## ⚠️ Terraform Plan (${{ matrix.environment }}) — instance replacement detected (expect downtime)'
+                : '## ✅ Terraform Plan (${{ matrix.environment }})';
             const body = `${header}\n\n<details><summary>Plan output</summary>\n\n\`\`\`\n${truncated}\n\`\`\`\n</details>`;
             await github.rest.issues.createComment({
               issue_number: context.issue.number,

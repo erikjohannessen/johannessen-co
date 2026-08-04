@@ -1,11 +1,10 @@
 # Ghost on AWS with Terraform
 
-This repository provisions two Ghost environments on AWS:
-
-- Test: `test.johannessen.co`
-- Production: `blog.johannessen.co`
+This repository provisions two Ghost environments on AWS, a Test site and a Production site.
 
 Both environments are managed with Terraform and deployed through GitHub Actions.
+
+Both sites are deployed on different subdomains within the same domain.
 
 ## What gets created
 
@@ -22,18 +21,21 @@ For each environment:
 
 ## Prerequisites
 
-- AWS account with Route53 hosted zone for `johannessen.co`
+- AWS account with Route53 hosted zone
 - Terraform >= 1.10
 - AWS CLI v2 with Session Manager plugin installed locally
 - GitHub repository variables (Settings → Secrets and variables → Actions → Variables):
-  - `AWS_ROLE_ARN` (OIDC assumable role ARN for GitHub Actions, e.g. `arn:aws:iam::123456789012:role/GitHubActionsRole`)
-  - `AWS_ROLE_NAME` (Role Name for the AWS_ROLE_ARN, e.g. `GitHubActionsRole`)
-  - `AWS_REGION` (for example `us-east-1`)
-  - `GHOST_IMAGE` (Container image to use for ghost, default `ghost:6-alpine`)
-  - `TF_STATE_BUCKET` (S3 bucket for Terraform state; plan and apply are skipped when unset)
+  - `AWS_ACCOUNT_ID` (Account ID for AWS to deploy resources to, e.g. `123456789012`)
+  - `AWS_ROLE_NAME` (Role Name to assume for deployment via GitHub Actions, e.g. `GitHubActionsRole`)
+  - `AWS_REGION` (e.g. `us-east-1`)
+  - `ROUTE53_ZONE_NAME` (Route 53 hosted zone, e.g. `abcdef.com`)
+  - `GHOST_IMAGE` (Container image to use for Ghost, default `ghost:6-alpine`)
+  - `TF_STATE_BUCKET` (S3 bucket for Terraform state)
   - `TF_STATE_KEY` (optional, default `ghost/terraform.tfstate`)
 - GitHub repository secret (Settings → Secrets and variables → Actions → Secrets):
   - `DB_PASSWORD` (MySQL password used by both Ghost environments)
+- GitHub environment variables for each environment (`test` and `prod`):
+  - `SUBDOMAIN` (The subdomain to deploy the Ghost site to for this environment, e.g. `blog` deploys to `blog.abcdef.com`)
 
 ## Local usage
 
