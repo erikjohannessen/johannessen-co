@@ -16,7 +16,6 @@ env:
   TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
   TF_STATE_KEY: ${{ vars.TF_STATE_KEY || 'ghost/terraform.tfstate' }}
   TF_VAR_aws_region: ${{ vars.AWS_REGION }}
-  TF_VAR_route53_zone_name: ${{ vars.ROUTE53_ZONE_NAME }}
 
 jobs:
   plan-common:
@@ -94,16 +93,20 @@ jobs:
               body
             });
 
-  plan-test:
+  plan-environment:
     runs-on: ubuntu-latest
-    environment: test
+    needs: plan-common
+    strategy:
+      matrix:
+        environment: [test, prod]
+    environment: ${{ matrix.environment }}
     defaults:
       run:
         working-directory: terraform
-    needs: plan-common
     env:
       TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
-      TF_VAR_environment: ${{ vars.ENVIRONMENT_NAME }}
+      TF_VAR_environment: ${{ matrix.environment }}
+      TF_VAR_route53_zone_name: ${{ vars.ROUTE53_ZONE_NAME }}
       TF_VAR_subdomain: ${{ vars.SUBDOMAIN }}
 
     steps:
@@ -112,7 +115,7 @@ jobs:
 
       - name: Fail if critical environment variables are not set
         if: vars.AWS_REGION == '' || vars.AWS_ACCOUNT_ID == '' || vars.AWS_ROLE_NAME == '' ||
-          vars.TF_STATE_BUCKET == '' || vars.ROUTE53_ZONE_NAME == '' || vars.SUBDOMAIN == '' || vars.ENVIRONMENT_NAME == ''
+          vars.TF_STATE_BUCKET == '' || vars.ROUTE53_ZONE_NAME == '' || vars.SUBDOMAIN == ''
         run: exit 1
 
       - name: Set ghost_image variable if configured
@@ -144,19 +147,19 @@ jobs:
 
       # Selects workspace. If it doesn't exist yet, it creates it.
       - name: Select or Create Workspace
-        run: terraform -chdir=modules/ghost_site workspace select ${{ vars.ENVIRONMENT_NAME }} || terraform -chdir=modules/ghost_site workspace new ${{ vars.ENVIRONMENT_NAME }}
+        run: terraform -chdir=modules/ghost_site workspace select ${{ matrix.environment }} || terraform -chdir=modules/ghost_site workspace new ${{ matrix.environment }}
 
       - name: Terraform Plan
-        id: plan-test
+        id: plan
         run: |
           ssm_tunnel_instance_profile=${{ needs.plan-common.outputs.ssm_tunnel_instance_profile }}
           export TF_LOG=DEBUG TF_LOG_PATH="$GITHUB_WORKSPACE/terraform-debug.log"
           terraform -chdir=modules/ghost_site plan \
             -var "ssm_tunnel_instance_profile=$ssm_tunnel_instance_profile" -input=false -no-color 2>&1 \
-            | tee "$GITHUB_WORKSPACE/${{ vars.ENVIRONMENT_NAME }}-plan.txt"; exit ${PIPESTATUS[0]}
+            | tee "$GITHUB_WORKSPACE/${{ matrix.environment }}-plan.txt"; exit ${PIPESTATUS[0]}
 
       - name: Post Plan to PR
-        if: always() && steps.plan-test.outcome != 'skipped'
+        if: always() && steps.plan.outcome != 'skipped'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -164,15 +167,15 @@ jobs:
             const fs = require('fs');
             const path = require('path');
             const MAX_PLAN_LENGTH = 60000;
-            const plan = fs.readFileSync(path.join(process.env.GITHUB_WORKSPACE, '${{ vars.ENVIRONMENT_NAME }}-plan.txt'), 'utf8');
+            const plan = fs.readFileSync(path.join(process.env.GITHUB_WORKSPACE, '${{ matrix.environment }}-plan.txt'), 'utf8');
             const truncated = plan.length > MAX_PLAN_LENGTH ? plan.slice(0, MAX_PLAN_LENGTH) + '\n... (truncated)' : plan;
             const willBeReplaced = plan.includes('must be replaced') || plan.includes('will be replaced');
-            const outcome = '${{ steps.plan-test.outcome }}';
+            const outcome = '${{ steps.plan.outcome }}';
             const header = outcome === 'failure'
-              ? '## ❌ Terraform Plan — plan failed'
+              ? '## ❌ Terraform Plan (${{ matrix.environment }}) — plan failed'
               : willBeReplaced
-                ? '## ⚠️ Terraform Plan — instance replacement detected (expect downtime)'
-                : '## ✅ Terraform Plan';
+                ? '## ⚠️ Terraform Plan (${{ matrix.environment }}) — instance replacement detected (expect downtime)'
+                : '## ✅ Terraform Plan (${{ matrix.environment }})';
             const body = `${header}\n\n<details><summary>Plan output</summary>\n\n\`\`\`\n${truncated}\n\`\`\`\n</details>`;
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
