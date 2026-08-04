@@ -35,7 +35,6 @@ For each environment:
 - GitHub repository secret (Settings → Secrets and variables → Actions → Secrets):
   - `DB_PASSWORD` (MySQL password used by both Ghost environments)
 - GitHub environment variables for each environment (`test` and `prod`):
-  - `ENVIRONMENT_NAME` (The name of this environment to use in variables and logs, e.g. `test`)
   - `SUBDOMAIN` (The subdomain to deploy the Ghost site to for this environment, e.g. `blog` deploys to `blog.abcdef.com`)
 
 ## Local usage

@@ -13,6 +13,8 @@ permissions:
 
 env:
   AWS_REGION: ${{ vars.AWS_REGION }}
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+  TF_STATE_KEY: ${{ vars.TF_STATE_KEY || 'ghost/terraform.tfstate' }}
   TF_VAR_aws_region: ${{ vars.AWS_REGION }}
 
 jobs:
@@ -22,8 +24,6 @@ jobs:
       run:
         working-directory: terraform
     env:
-      TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
-      TF_STATE_KEY: ${{ vars.TF_STATE_KEY || 'ghost/terraform.tfstate' }}
       TF_VAR_aws_role_name: ${{ vars.AWS_ROLE_NAME }}
       TF_VAR_tf_state_bucket: ${{ vars.TF_STATE_BUCKET }}
     outputs:
@@ -71,109 +71,19 @@ jobs:
           terraform apply -auto-approve -no-color tfplan-common
           echo "ssm_tunnel_instance_profile=$(terraform output -raw ssm_tunnel_instance_profile)" >> $GITHUB_OUTPUT
 
-  deploy-test:
+  deploy-environment:
     runs-on: ubuntu-latest
-    environment: test
-    defaults:
-      run:
-        working-directory: terraform
     needs: deploy-common
-    env:
-      TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
-      TF_STATE_KEY: ${{ vars.TF_STATE_KEY || 'ghost/terraform.tfstate' }}
-      TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
-      TF_VAR_environment: ${{ vars.ENVIRONMENT_NAME }}
-      TF_VAR_route53_zone_name: ${{ vars.ROUTE53_ZONE_NAME }}
-      TF_VAR_subdomain: ${{ vars.SUBDOMAIN }}
-      TF_VAR_tf_state_bucket: ${{ vars.TF_STATE_BUCKET }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Fail if critical environment variables are not set
-        if: vars.AWS_REGION == '' || vars.AWS_ACCOUNT_ID == '' || vars.AWS_ROLE_NAME == '' ||
-          vars.TF_STATE_BUCKET == '' || vars.ROUTE53_ZONE_NAME == '' || vars.SUBDOMAIN == '' || vars.ENVIRONMENT_NAME == ''
-        run: exit 1
-
-      - name: Set ghost_image variable if configured
-        if: ${{ vars.GHOST_IMAGE != '' }}
-        run: echo "TF_VAR_ghost_image=${{ vars.GHOST_IMAGE }}" >> $GITHUB_ENV
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AWS_ROLE_NAME }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform Init (with backend)
-        run: |
-          terraform -chdir=modules/ghost_site init \
-            -backend-config="bucket=${TF_STATE_BUCKET}" \
-            -backend-config="use_lockfile=true" \
-            -backend-config="key=${TF_STATE_KEY}" \
-            -backend-config="region=${AWS_REGION}"
-
-      - name: Terraform Format Check
-        run: terraform -chdir=modules/ghost_site fmt -check -recursive
-
-      - name: Terraform Validate
-        run: terraform -chdir=modules/ghost_site validate
-
-      # Selects the test workspace. If it doesn't exist yet, it creates it.
-      - name: Select or Create Test Workspace
-        run: terraform -chdir=modules/ghost_site workspace select ${{ vars.ENVIRONMENT_NAME }} || terraform -chdir=modules/ghost_site workspace new ${{ vars.ENVIRONMENT_NAME }}
-
-      - name: Terraform Plan Test Environment
-        run: |
-          ssm_tunnel_instance_profile=${{ needs.deploy-common.outputs.ssm_tunnel_instance_profile }}
-          terraform -chdir=modules/ghost_site plan \
-            -var "ssm_tunnel_instance_profile=$ssm_tunnel_instance_profile" -input=false -out=tfplan-${{ vars.ENVIRONMENT_NAME }} -no-color
-
-      - name: Terraform Apply Test Environment
-        run: terraform -chdir=modules/ghost_site apply -auto-approve -no-color tfplan-${{ vars.ENVIRONMENT_NAME }}
-
-      - name: Wait for Test RDS instances
-        run: |
-          db_id=$(terraform -chdir=modules/ghost_site output -raw db_instance_identifier)
-          echo "Waiting for RDS instance: $db_id"
-          aws rds wait db-instance-available --db-instance-identifier "$db_id"
-
-      - name: Wait for Test ECS services
-        run: |
-          cluster=$(terraform -chdir=modules/ghost_site output -raw ecs_cluster_name)
-          service=$(terraform -chdir=modules/ghost_site output -raw ecs_service_name)
-          echo "Waiting for ECS service to become stable: $cluster / $service"
-          aws ecs wait services-stable --cluster "$cluster" --services "$service"
-
-      - name: Test Environment Smoke Test
-        run: |
-          host=$(terraform -chdir=modules/ghost_site output -raw hostname)
-          alb_dns_name=$(terraform -chdir=modules/ghost_site output -raw alb_dns_name)
-          echo "Smoke testing https://$host (via $alb_dns_name)..."
-          body=$(curl -sL --max-time 20 --connect-to "$host:443:$alb_dns_name:443" "https://$host/")
-          if echo "$body" | grep -qi "<html"; then
-            echo "✓ $host returned HTML content"
-          else
-            echo "✗ $host did not return HTML content"
-            exit 1
-          fi
-
-  deploy-prod:
-    runs-on: ubuntu-latest
-    environment: prod
+    strategy:
+      matrix:
+        environment: [test, prod]
+    environment: ${{ matrix.environment }}
     defaults:
       run:
         working-directory: terraform
-    needs: [deploy-common, deploy-test]
     env:
-      TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
-      TF_STATE_KEY: ${{ vars.TF_STATE_KEY || 'ghost/terraform.tfstate' }}
       TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
-      TF_VAR_environment: ${{ vars.ENVIRONMENT_NAME }}
+      TF_VAR_environment: ${{ matrix.environment }}
       TF_VAR_route53_zone_name: ${{ vars.ROUTE53_ZONE_NAME }}
       TF_VAR_subdomain: ${{ vars.SUBDOMAIN }}
       TF_VAR_tf_state_bucket: ${{ vars.TF_STATE_BUCKET }}
@@ -184,7 +94,7 @@ jobs:
 
       - name: Fail if critical environment variables are not set
         if: vars.AWS_REGION == '' || vars.AWS_ACCOUNT_ID == '' || vars.AWS_ROLE_NAME == '' ||
-          vars.TF_STATE_BUCKET == '' || vars.ROUTE53_ZONE_NAME == '' || vars.SUBDOMAIN == '' || vars.ENVIRONMENT_NAME == ''
+          vars.TF_STATE_BUCKET == '' || vars.ROUTE53_ZONE_NAME == '' || vars.SUBDOMAIN == ''
         run: exit 1
 
       - name: Set ghost_image variable if configured
@@ -214,33 +124,33 @@ jobs:
       - name: Terraform Validate
         run: terraform -chdir=modules/ghost_site validate
 
-      # Selects the prod workspace. If it doesn't exist yet, it creates it.
-      - name: Select or Create Prod Workspace
-        run: terraform -chdir=modules/ghost_site workspace select ${{ vars.ENVIRONMENT_NAME }} || terraform -chdir=modules/ghost_site workspace new ${{ vars.ENVIRONMENT_NAME }}
+      # Selects workspace. If it doesn't exist yet, it creates it.
+      - name: Select or Create Workspace
+        run: terraform -chdir=modules/ghost_site workspace select ${{ matrix.environment }} || terraform -chdir=modules/ghost_site workspace new ${{ matrix.environment }}
 
-      - name: Terraform Plan Prod Environment
+      - name: Terraform Plan
         run: |
           ssm_tunnel_instance_profile=${{ needs.deploy-common.outputs.ssm_tunnel_instance_profile }}
           terraform -chdir=modules/ghost_site plan \
-            -var "ssm_tunnel_instance_profile=$ssm_tunnel_instance_profile" -input=false -out=tfplan-${{ vars.ENVIRONMENT_NAME }} -no-color
+            -var "ssm_tunnel_instance_profile=$ssm_tunnel_instance_profile" -input=false -out=tfplan-${{ matrix.environment }} -no-color
 
-      - name: Terraform Apply Prod Environment
-        run: terraform -chdir=modules/ghost_site apply -auto-approve -no-color tfplan-${{ vars.ENVIRONMENT_NAME }}
+      - name: Terraform Apply
+        run: terraform -chdir=modules/ghost_site apply -auto-approve -no-color tfplan-${{ matrix.environment }}
 
-      - name: Wait for Prod RDS instances
+      - name: Wait for RDS instances
         run: |
           db_id=$(terraform -chdir=modules/ghost_site output -raw db_instance_identifier)
           echo "Waiting for RDS instance: $db_id"
           aws rds wait db-instance-available --db-instance-identifier "$db_id"
 
-      - name: Wait for Prod ECS services
+      - name: Wait for ECS services
         run: |
           cluster=$(terraform -chdir=modules/ghost_site output -raw ecs_cluster_name)
           service=$(terraform -chdir=modules/ghost_site output -raw ecs_service_name)
           echo "Waiting for ECS service to become stable: $cluster / $service"
           aws ecs wait services-stable --cluster "$cluster" --services "$service"
 
-      - name: Prod Environment Smoke Test
+      - name: Smoke Test
         run: |
           host=$(terraform -chdir=modules/ghost_site output -raw hostname)
           alb_dns_name=$(terraform -chdir=modules/ghost_site output -raw alb_dns_name)
