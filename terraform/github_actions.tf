@@ -158,10 +158,13 @@ resource "aws_iam_role_policy" "github_actions" {
           "iam:DeleteUser",
           "iam:DeleteUserPolicy",
           "iam:GetUser",
+          "iam:GetUserPolicy",
           "iam:ListAccessKeys",
           "iam:ListUserPolicies",
           "iam:PutUserPolicy",
-          "iam:GetUserPolicy",
+          "iam:TagUser",
+          "iam:UntagUser",
+          "iam:ListUserTags",
         ]
         Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/ghost-ses-smtp-user"
       },
@@ -262,6 +265,7 @@ resource "aws_iam_role_policy" "github_actions" {
           "secretsmanager:DeleteSecret",
           "secretsmanager:DescribeSecret",
           "secretsmanager:GetResourcePolicy",
+          "secretsmanager:GetSecretValue",
           "secretsmanager:ListSecretVersionIds",
           "secretsmanager:PutSecretValue",
           "secretsmanager:TagResource",

@@ -120,6 +120,8 @@ resource "aws_secretsmanager_secret" "ses_smtp_password" {
   name                    = "ghost/ses-smtp-password"
   description             = "SES SMTP password for Ghost mail transport"
   recovery_window_in_days = 0
+
+  depends_on = [aws_iam_role_policy.github_actions]
 }
 
 resource "aws_secretsmanager_secret_version" "ses_smtp_password" {
