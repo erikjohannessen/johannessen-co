@@ -16,6 +16,7 @@ env:
   TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
   TF_STATE_KEY: ${{ vars.TF_STATE_KEY || 'ghost/terraform.tfstate' }}
   TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+  TF_VAR_route53_zone_name: ${{ vars.ROUTE53_ZONE_NAME }}
 
 jobs:
   plan-common:
@@ -26,14 +27,9 @@ jobs:
     env:
       TF_VAR_aws_role_name: ${{ vars.AWS_ROLE_NAME }}
       TF_VAR_ghost_exports_bucket: ${{ vars.GHOST_EXPORTS_BUCKET }}
-      TF_VAR_route53_zone_name: ${{ vars.ROUTE53_ZONE_NAME }}
       TF_VAR_tf_state_bucket: ${{ vars.TF_STATE_BUCKET }}
     outputs:
       ssm_tunnel_instance_profile: ${{ steps.plan-common.outputs.ssm_tunnel_instance_profile }}
-      ses_smtp_username: ${{ steps.plan-common.outputs.ses_smtp_username }}
-      ses_smtp_secret_arn: ${{ steps.plan-common.outputs.ses_smtp_secret_arn }}
-      ses_smtp_host: ${{ steps.plan-common.outputs.ses_smtp_host }}
-      ses_mail_from: ${{ steps.plan-common.outputs.ses_mail_from }}
 
     steps:
       - name: Checkout
@@ -70,12 +66,8 @@ jobs:
         id: plan-common
         run: |
           export TF_LOG=DEBUG TF_LOG_PATH="$GITHUB_WORKSPACE/terraform-debug.log"
-          terraform plan -input=false -no-color 2>&1 | tee "$GITHUB_WORKSPACE/default-plan.txt"; exit ${PIPESTATUS[0]}
+          terraform plan -input=false -no-color 2>&1 | tee "$GITHUB_WORKSPACE/default-plan.txt"
           echo "ssm_tunnel_instance_profile=$(terraform output -raw ssm_tunnel_instance_profile)" >> $GITHUB_OUTPUT
-          echo "ses_smtp_username=$(terraform output -raw ses_smtp_username)" >> $GITHUB_OUTPUT
-          echo "ses_smtp_secret_arn=$(terraform output -raw ses_smtp_secret_arn)" >> $GITHUB_OUTPUT
-          echo "ses_smtp_host=$(terraform output -raw ses_smtp_host)" >> $GITHUB_OUTPUT
-          echo "ses_mail_from=$(terraform output -raw ses_mail_from)" >> $GITHUB_OUTPUT
 
       - name: Post Plan to PR
         if: always() && steps.plan-common.outcome != 'skipped'
@@ -116,7 +108,6 @@ jobs:
     env:
       TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
       TF_VAR_environment: ${{ matrix.environment }}
-      TF_VAR_route53_zone_name: ${{ vars.ROUTE53_ZONE_NAME }}
       TF_VAR_subdomain: ${{ vars.SUBDOMAIN }}
 
     steps:
@@ -163,17 +154,14 @@ jobs:
         id: plan
         run: |
           ssm_tunnel_instance_profile=${{ needs.plan-common.outputs.ssm_tunnel_instance_profile }}
-          ses_smtp_username=${{ needs.plan-common.outputs.ses_smtp_username }}
-          ses_smtp_secret_arn=${{ needs.plan-common.outputs.ses_smtp_secret_arn }}
-          ses_smtp_host=${{ needs.plan-common.outputs.ses_smtp_host }}
-          ses_mail_from=${{ needs.plan-common.outputs.ses_mail_from }}
           export TF_LOG=DEBUG TF_LOG_PATH="$GITHUB_WORKSPACE/terraform-debug.log"
           terraform -chdir=modules/ghost_site plan \
             -var "ssm_tunnel_instance_profile=$ssm_tunnel_instance_profile" \
-            -var "ses_smtp_username=$ses_smtp_username" \
-            -var "ses_smtp_secret_arn=$ses_smtp_secret_arn" \
-            -var "ses_smtp_host=$ses_smtp_host" \
-            -var "ses_mail_from=$ses_mail_from" -input=false -no-color 2>&1 \
+            -var "ses_smtp_username=placeholder_username" \
+            -var "ses_smtp_secret_arn=arn:aws:secretsmanager:${{ vars.AWS_REGION}}:${{ vars.AWS_ACCOUNT_ID }}:secret:placeholder_secret" \
+            -var "ses_smtp_host=email-smtp.${{ vars.AWS_REGION}}.amazonaws.com" \
+            -var "ses_mail_from=noreply@${{ vars.ROUTE53_ZONE_NAME }}" \
+            -input=false -no-color 2>&1 \
             | tee "$GITHUB_WORKSPACE/${{ matrix.environment }}-plan.txt"; exit ${PIPESTATUS[0]}
 
       - name: Post Plan to PR
