@@ -89,7 +89,6 @@ How it works:
   - `environment` (`test` or `prod`)
   - `s3_bucket` (bucket containing export file)
   - `s3_key` (object key, for example `backups/ghost_export.json`)
-  - `ghost_url` (optional override; if empty, Terraform output `hostname` for the selected workspace is used)
 3. The workflow assumes your AWS role via OIDC, downloads the export JSON from S3, and runs:
   - `scripts/import-ghost-export.sh`
 4. The script authenticates against Ghost Admin API and imports the JSON via `/ghost/api/admin/db/`.
