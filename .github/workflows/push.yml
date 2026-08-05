@@ -31,7 +31,7 @@ jobs:
     outputs:
       ssm_tunnel_instance_profile: ${{ steps.apply-common.outputs.ssm_tunnel_instance_profile }}
       ses_smtp_username: ${{ steps.apply-common.outputs.ses_smtp_username }}
-      ses_smtp_password: ${{ steps.apply-common.outputs.ses_smtp_password }}
+      ses_smtp_secret_arn: ${{ steps.apply-common.outputs.ses_smtp_secret_arn }}
       ses_smtp_host: ${{ steps.apply-common.outputs.ses_smtp_host }}
       ses_mail_from: ${{ steps.apply-common.outputs.ses_mail_from }}
 
@@ -77,9 +77,7 @@ jobs:
           terraform apply -auto-approve -no-color tfplan-common
           echo "ssm_tunnel_instance_profile=$(terraform output -raw ssm_tunnel_instance_profile)" >> $GITHUB_OUTPUT
           echo "ses_smtp_username=$(terraform output -raw ses_smtp_username)" >> $GITHUB_OUTPUT
-          ses_smtp_password=$(terraform output -raw ses_smtp_password)
-          echo "::add-mask::$ses_smtp_password"
-          echo "ses_smtp_password=$ses_smtp_password" >> $GITHUB_OUTPUT
+          echo "ses_smtp_secret_arn=$(terraform output -raw ses_smtp_secret_arn)" >> $GITHUB_OUTPUT
           echo "ses_smtp_host=$(terraform output -raw ses_smtp_host)" >> $GITHUB_OUTPUT
           echo "ses_mail_from=$(terraform output -raw ses_mail_from)" >> $GITHUB_OUTPUT
 
@@ -144,13 +142,13 @@ jobs:
         run: |
           ssm_tunnel_instance_profile=${{ needs.deploy-common.outputs.ssm_tunnel_instance_profile }}
           ses_smtp_username=${{ needs.deploy-common.outputs.ses_smtp_username }}
-          ses_smtp_password=${{ needs.deploy-common.outputs.ses_smtp_password }}
+          ses_smtp_secret_arn=${{ needs.deploy-common.outputs.ses_smtp_secret_arn }}
           ses_smtp_host=${{ needs.deploy-common.outputs.ses_smtp_host }}
           ses_mail_from=${{ needs.deploy-common.outputs.ses_mail_from }}
           terraform -chdir=modules/ghost_site plan \
             -var "ssm_tunnel_instance_profile=$ssm_tunnel_instance_profile" \
             -var "ses_smtp_username=$ses_smtp_username" \
-            -var "ses_smtp_password=$ses_smtp_password" \
+            -var "ses_smtp_secret_arn=$ses_smtp_secret_arn" \
             -var "ses_smtp_host=$ses_smtp_host" \
             -var "ses_mail_from=$ses_mail_from" -input=false -out=tfplan-${{ matrix.environment }} -no-color
 

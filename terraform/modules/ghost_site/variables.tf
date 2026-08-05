@@ -57,10 +57,9 @@ variable "ses_smtp_username" {
   type        = string
 }
 
-variable "ses_smtp_password" {
-  description = "SES SMTP password used by Ghost mail transport."
+variable "ses_smtp_secret_arn" {
+  description = "ARN of the Secrets Manager secret containing the SES SMTP password."
   type        = string
-  sensitive   = true
 }
 
 variable "ses_smtp_host" {

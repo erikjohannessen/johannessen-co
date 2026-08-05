@@ -202,6 +202,22 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
+  name = "${local.name_prefix}-ecs-exec-secrets"
+  role = aws_iam_role.ecs_task_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = [var.ses_smtp_secret_arn]
+      }
+    ]
+  })
+}
+
 resource "aws_lb" "ghost" {
   name               = "${local.name_prefix}-alb"
   internal           = false
@@ -333,7 +349,9 @@ resource "aws_ecs_task_definition" "ghost" {
         { name = "mail__options__port", value = "587" },
         { name = "mail__options__secure", value = "false" },
         { name = "mail__options__auth__user", value = var.ses_smtp_username },
-        { name = "mail__options__auth__pass", value = var.ses_smtp_password }
+      ]
+      secrets = [
+        { name = "mail__options__auth__pass", valueFrom = var.ses_smtp_secret_arn },
       ]
       logConfiguration = {
         logDriver = "awslogs"
