@@ -1,0 +1,102 @@
+name: Manual Ghost Import
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target Terraform workspace / Ghost environment
+        required: true
+        type: choice
+        options:
+          - test
+          - prod
+      s3_bucket:
+        description: S3 bucket containing ghost_export.json
+        required: true
+        type: string
+      s3_key:
+        description: S3 object key for the Ghost export JSON file
+        required: true
+        type: string
+      skip_tls_verify:
+        description: Disable TLS verification (only for temporary troubleshooting)
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+  TF_STATE_KEY: ${{ vars.TF_STATE_KEY || 'ghost/terraform.tfstate' }}
+
+jobs:
+  import-ghost-export:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required repository settings
+        if: vars.AWS_REGION == '' || vars.AWS_ACCOUNT_ID == '' || vars.AWS_ROLE_NAME == '' || vars.TF_STATE_BUCKET == ''
+        run: |
+          echo "Missing one or more required repository variables: AWS_REGION, AWS_ACCOUNT_ID, AWS_ROLE_NAME, TF_STATE_BUCKET" >&2
+          exit 1
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AWS_ROLE_NAME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download Ghost export from S3
+        run: |
+          mkdir -p "$RUNNER_TEMP/ghost-import"
+          aws s3 cp "s3://${{ inputs.s3_bucket }}/${{ inputs.s3_key }}" "$RUNNER_TEMP/ghost-import/ghost_export.json"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Resolve Ghost URL
+        id: resolve-url
+        working-directory: terraform
+        run: |
+          terraform -chdir=modules/ghost_site init \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="use_lockfile=true" \
+            -backend-config="key=${TF_STATE_KEY}" \
+            -backend-config="region=${AWS_REGION}"
+
+          terraform -chdir=modules/ghost_site workspace select "${{ inputs.environment }}"
+          host="$(terraform -chdir=modules/ghost_site output -raw hostname)"
+          echo "ghost_url=https://$host" >> "$GITHUB_OUTPUT"
+
+      - name: Run Ghost import
+        env:
+          GHOST_ADMIN_EMAIL: ${{ secrets.GHOST_ADMIN_EMAIL }}
+          GHOST_ADMIN_PASSWORD: ${{ secrets.GHOST_ADMIN_PASSWORD }}
+        run: |
+          if [[ -z "$GHOST_ADMIN_EMAIL" || -z "$GHOST_ADMIN_PASSWORD" ]]; then
+            echo "Missing required secrets: GHOST_ADMIN_EMAIL and/or GHOST_ADMIN_PASSWORD" >&2
+            exit 1
+          fi
+
+          chmod +x ./scripts/import-ghost-export.sh
+
+          script_args=(
+            --ghost-url "${{ steps.resolve-url.outputs.ghost_url }}"
+            --export-file "$RUNNER_TEMP/ghost-import/ghost_export.json"
+            --admin-email "$GHOST_ADMIN_EMAIL"
+            --admin-password "$GHOST_ADMIN_PASSWORD"
+          )
+
+          if [[ "${{ inputs.skip_tls_verify }}" == "true" ]]; then
+            script_args+=(--insecure)
+          fi
+
+          ./scripts/import-ghost-export.sh "${script_args[@]}"
