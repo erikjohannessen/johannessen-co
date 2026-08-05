@@ -57,13 +57,13 @@ resource "aws_ses_domain_dkim" "ghost" {
 }
 
 resource "aws_route53_record" "ses_dkim" {
-  for_each = toset(aws_ses_domain_dkim.ghost.dkim_tokens)
+  count = 3
 
   zone_id = data.aws_route53_zone.primary.zone_id
-  name    = "${each.value}._domainkey.${var.route53_zone_name}"
+  name    = "${aws_ses_domain_dkim.ghost.dkim_tokens[count.index]}._domainkey.${var.route53_zone_name}"
   type    = "CNAME"
   ttl     = 600
-  records = ["${each.value}.dkim.amazonses.com"]
+  records = ["${aws_ses_domain_dkim.ghost.dkim_tokens[count.index]}.dkim.amazonses.com"]
 }
 
 resource "aws_ses_domain_mail_from" "ghost" {
