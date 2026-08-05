@@ -151,6 +151,39 @@ resource "aws_iam_role_policy" "github_actions" {
       },
       {
         Effect = "Allow"
+        Action = [
+          "iam:CreateAccessKey",
+          "iam:CreateUser",
+          "iam:DeleteAccessKey",
+          "iam:DeleteUser",
+          "iam:DeleteUserPolicy",
+          "iam:GetUser",
+          "iam:GetUserPolicy",
+          "iam:ListAccessKeys",
+          "iam:ListUserPolicies",
+          "iam:PutUserPolicy",
+          "iam:TagUser",
+          "iam:UntagUser",
+          "iam:ListUserTags",
+        ]
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/ghost-ses-smtp-user"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ses:DeleteIdentity",
+          "ses:GetIdentityDkimAttributes",
+          "ses:GetIdentityMailFromDomainAttributes",
+          "ses:GetIdentityVerificationAttributes",
+          "ses:ListIdentities",
+          "ses:SetIdentityMailFromDomain",
+          "ses:VerifyDomainDkim",
+          "ses:VerifyDomainIdentity",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
         Action = ["iam:PassRole"]
         Resource = [
           "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/ghost-*-ecs-task-exec-role",
@@ -224,6 +257,22 @@ resource "aws_iam_role_policy" "github_actions" {
           "arn:aws:s3:::${var.tf_state_bucket}",
           "arn:aws:s3:::${var.tf_state_bucket}/*",
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:CreateSecret",
+          "secretsmanager:DeleteSecret",
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:GetResourcePolicy",
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:ListSecretVersionIds",
+          "secretsmanager:PutSecretValue",
+          "secretsmanager:TagResource",
+          "secretsmanager:UntagResource",
+          "secretsmanager:UpdateSecret",
+        ]
+        Resource = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:ghost/ses-smtp-password*"
       },
       {
         Effect   = "Allow"

@@ -52,6 +52,26 @@ variable "ssm_tunnel_instance_profile" {
   type        = string
 }
 
+variable "ses_smtp_username" {
+  description = "SES SMTP username used by Ghost mail transport."
+  type        = string
+}
+
+variable "ses_smtp_secret_arn" {
+  description = "ARN of the Secrets Manager secret containing the SES SMTP password."
+  type        = string
+}
+
+variable "ses_smtp_host" {
+  description = "SES SMTP host used by Ghost mail transport."
+  type        = string
+}
+
+variable "ses_mail_from" {
+  description = "Default From address for Ghost outbound mail."
+  type        = string
+}
+
 variable "task_cpu" {
   description = "Fargate task CPU units."
   type        = string

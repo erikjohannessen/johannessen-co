@@ -28,7 +28,7 @@ For each environment:
   - `AWS_ACCOUNT_ID` (Account ID for AWS to deploy resources to, e.g. `123456789012`)
   - `AWS_ROLE_NAME` (Role Name to assume for deployment via GitHub Actions, e.g. `GitHubActionsRole`)
   - `AWS_REGION` (e.g. `us-east-1`)
-  - `ROUTE53_ZONE_NAME` (Route 53 hosted zone, e.g. `abcdef.com`)
+  - `ROUTE53_ZONE_NAME` (Route 53 hosted zone, e.g. `example.com`)
   - `GHOST_IMAGE` (Container image to use for Ghost, default `ghost:6-alpine`)
   - `TF_STATE_BUCKET` (S3 bucket for Terraform state)
   - `GHOST_EXPORTS_BUCKET` (optional, S3 bucket for Ghost export files used by manual import workflow)
@@ -38,29 +38,7 @@ For each environment:
   - `GHOST_ADMIN_EMAIL` (Ghost admin user email used by manual import workflow)
   - `GHOST_ADMIN_PASSWORD` (Ghost admin user password used by manual import workflow)
 - GitHub environment variables for each environment (`test` and `prod`):
-  - `SUBDOMAIN` (The subdomain to deploy the Ghost site to for this environment, e.g. `blog` deploys to `blog.abcdef.com`)
-
-## Local usage
-
-```bash
-cd terraform
-terraform init \
-  -backend-config="bucket=<state-bucket>" \
-  -backend-config="use_lockfile=true" \
-  -backend-config="key=ghost/terraform.tfstate" \
-  -backend-config="region=us-east-1"
-export TF_VAR_db_password="<db-password>"
-terraform plan
-terraform apply
-```
-
-Optional overrides:
-
-```bash
-terraform apply \
-  -var="aws_region=us-east-1" \
-  -var="route53_zone_name=johannessen.co"
-```
+  - `SUBDOMAIN` (The subdomain to deploy the Ghost site to for this environment, e.g. `blog` deploys to `blog.example.com`)
 
 ## GitHub Actions deployment
 
@@ -73,6 +51,7 @@ Workflow files:
 - Pull requests: `terraform fmt -check`, `terraform validate`, and `terraform plan` (plan requires `TF_STATE_BUCKET`)
 - Push to `main`: `terraform apply -auto-approve` (requires `TF_STATE_BUCKET`)
 - State is stored in S3 with S3-native locking (`use_lockfile=true`) to keep GitHub Actions deployments consistent across runs.
+- Common Terraform now provisions SES (domain identity, DKIM, MAIL FROM, SMTP IAM credentials) once per account/region and injects SMTP settings into each Ghost environment at task startup.
 
 ## Manual Ghost Import from S3
 
@@ -136,6 +115,7 @@ If your state bucket uses a customer-managed KMS key, also include:
 ## Notes
 
 - Ghost is configured with `https://<domain>` and ALB redirects HTTP to HTTPS.
+- New AWS accounts begin in SES sandbox mode. While sandboxed, you can only send to verified recipient addresses until SES production access is granted. See [Request Production Access](https://docs.aws.amazon.com/ses/latest/dg/request-production-access.html) for more info.
 
 ## Connect to RDS via SSM
 

@@ -202,6 +202,22 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
+  name = "${local.name_prefix}-ecs-exec-secrets"
+  role = aws_iam_role.ecs_task_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = [var.ses_smtp_secret_arn]
+      }
+    ]
+  })
+}
+
 resource "aws_lb" "ghost" {
   name               = "${local.name_prefix}-alb"
   internal           = false
@@ -326,7 +342,16 @@ resource "aws_ecs_task_definition" "ghost" {
         { name = "database__connection__host", value = aws_db_instance.ghost.address },
         { name = "database__connection__user", value = "ghostuser" },
         { name = "database__connection__password", value = var.db_password },
-        { name = "database__connection__database", value = "ghost" }
+        { name = "database__connection__database", value = "ghost" },
+        { name = "mail__transport", value = "SMTP" },
+        { name = "mail__from", value = var.ses_mail_from },
+        { name = "mail__options__host", value = var.ses_smtp_host },
+        { name = "mail__options__port", value = "587" },
+        { name = "mail__options__secure", value = "false" },
+        { name = "mail__options__auth__user", value = var.ses_smtp_username },
+      ]
+      secrets = [
+        { name = "mail__options__auth__pass", valueFrom = var.ses_smtp_secret_arn },
       ]
       logConfiguration = {
         logDriver = "awslogs"
