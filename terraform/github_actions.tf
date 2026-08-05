@@ -116,15 +116,6 @@ resource "aws_iam_role_policy" "github_actions" {
       {
         Effect = "Allow"
         Action = [
-          "iam:CreateAccessKey",
-          "iam:CreateUser",
-          "iam:DeleteAccessKey",
-          "iam:DeleteUser",
-          "iam:DeleteUserPolicy",
-          "iam:GetUser",
-          "iam:ListAccessKeys",
-          "iam:ListUserPolicies",
-          "iam:PutUserPolicy",
           "iam:AddRoleToInstanceProfile",
           "iam:AttachRolePolicy",
           "iam:CreateInstanceProfile",
@@ -161,8 +152,25 @@ resource "aws_iam_role_policy" "github_actions" {
       {
         Effect = "Allow"
         Action = [
+          "iam:CreateAccessKey",
+          "iam:CreateUser",
+          "iam:DeleteAccessKey",
+          "iam:DeleteUser",
+          "iam:DeleteUserPolicy",
+          "iam:GetUser",
+          "iam:ListAccessKeys",
+          "iam:ListUserPolicies",
+          "iam:PutUserPolicy",
+          "iam:GetUserPolicy",
+        ]
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/ghost-ses-smtp-user"
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "ses:DeleteIdentity",
           "ses:GetIdentityDkimAttributes",
+          "ses:GetIdentityMailFromDomainAttributes",
           "ses:GetIdentityVerificationAttributes",
           "ses:ListIdentities",
           "ses:SetIdentityMailFromDomain",
