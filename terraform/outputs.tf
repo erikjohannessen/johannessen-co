@@ -1,3 +1,8 @@
+output "ses_smtp_secret_arn" {
+  description = "ARN of the Secrets Manager secret containing the SES SMTP password."
+  value       = aws_secretsmanager_secret.ses_smtp_password.arn
+}
+
 output "ssm_tunnel_instance_profile" {
   description = "IAM instance profile for SSM tunnels."
   value       = aws_iam_instance_profile.ssm_tunnel.name

@@ -113,3 +113,14 @@ resource "aws_iam_user_policy" "ghost_ses_smtp" {
 resource "aws_iam_access_key" "ghost_ses_smtp" {
   user = aws_iam_user.ghost_ses_smtp.name
 }
+
+resource "aws_secretsmanager_secret" "ses_smtp_password" {
+  name                    = "ghost/ses-smtp-password"
+  description             = "SES SMTP password for Ghost mail transport"
+  recovery_window_in_days = 0
+}
+
+resource "aws_secretsmanager_secret_version" "ses_smtp_password" {
+  secret_id     = aws_secretsmanager_secret.ses_smtp_password.id
+  secret_string = aws_iam_access_key.ghost_ses_smtp.ses_smtp_password_v4
+}

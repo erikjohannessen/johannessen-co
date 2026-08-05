@@ -31,7 +31,7 @@ jobs:
     outputs:
       ssm_tunnel_instance_profile: ${{ steps.plan-common.outputs.ssm_tunnel_instance_profile }}
       ses_smtp_username: ${{ steps.plan-common.outputs.ses_smtp_username }}
-      ses_smtp_password: ${{ steps.plan-common.outputs.ses_smtp_password }}
+      ses_smtp_secret_arn: ${{ steps.plan-common.outputs.ses_smtp_secret_arn }}
       ses_smtp_host: ${{ steps.plan-common.outputs.ses_smtp_host }}
       ses_mail_from: ${{ steps.plan-common.outputs.ses_mail_from }}
 
@@ -73,9 +73,7 @@ jobs:
           terraform plan -input=false -no-color 2>&1 | tee "$GITHUB_WORKSPACE/default-plan.txt"; exit ${PIPESTATUS[0]}
           echo "ssm_tunnel_instance_profile=$(terraform output -raw ssm_tunnel_instance_profile)" >> $GITHUB_OUTPUT
           echo "ses_smtp_username=$(terraform output -raw ses_smtp_username)" >> $GITHUB_OUTPUT
-          ses_smtp_password=$(terraform output -raw ses_smtp_password)
-          echo "::add-mask::$ses_smtp_password"
-          echo "ses_smtp_password=$ses_smtp_password" >> $GITHUB_OUTPUT
+          echo "ses_smtp_secret_arn=$(terraform output -raw ses_smtp_secret_arn)" >> $GITHUB_OUTPUT
           echo "ses_smtp_host=$(terraform output -raw ses_smtp_host)" >> $GITHUB_OUTPUT
           echo "ses_mail_from=$(terraform output -raw ses_mail_from)" >> $GITHUB_OUTPUT
 
@@ -166,14 +164,14 @@ jobs:
         run: |
           ssm_tunnel_instance_profile=${{ needs.plan-common.outputs.ssm_tunnel_instance_profile }}
           ses_smtp_username=${{ needs.plan-common.outputs.ses_smtp_username }}
-          ses_smtp_password=${{ needs.plan-common.outputs.ses_smtp_password }}
+          ses_smtp_secret_arn=${{ needs.plan-common.outputs.ses_smtp_secret_arn }}
           ses_smtp_host=${{ needs.plan-common.outputs.ses_smtp_host }}
           ses_mail_from=${{ needs.plan-common.outputs.ses_mail_from }}
           export TF_LOG=DEBUG TF_LOG_PATH="$GITHUB_WORKSPACE/terraform-debug.log"
           terraform -chdir=modules/ghost_site plan \
             -var "ssm_tunnel_instance_profile=$ssm_tunnel_instance_profile" \
             -var "ses_smtp_username=$ses_smtp_username" \
-            -var "ses_smtp_password=$ses_smtp_password" \
+            -var "ses_smtp_secret_arn=$ses_smtp_secret_arn" \
             -var "ses_smtp_host=$ses_smtp_host" \
             -var "ses_mail_from=$ses_mail_from" -input=false -no-color 2>&1 \
             | tee "$GITHUB_WORKSPACE/${{ matrix.environment }}-plan.txt"; exit ${PIPESTATUS[0]}
