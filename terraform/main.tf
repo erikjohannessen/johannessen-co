@@ -90,6 +90,8 @@ resource "aws_route53_record" "ses_mail_from_spf" {
 
 resource "aws_iam_user" "ghost_ses_smtp" {
   name = "ghost-ses-smtp-user"
+
+  depends_on = [aws_iam_role_policy.github_actions]
 }
 
 resource "aws_iam_user_policy" "ghost_ses_smtp" {
