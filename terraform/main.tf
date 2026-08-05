@@ -34,6 +34,8 @@ locals {
 
 resource "aws_ses_domain_identity" "ghost" {
   domain = var.route53_zone_name
+
+  depends_on = [aws_iam_role_policy.github_actions]
 }
 
 resource "aws_route53_record" "ses_verification" {
