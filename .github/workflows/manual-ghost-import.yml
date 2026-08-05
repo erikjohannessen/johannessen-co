@@ -55,9 +55,12 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Download Ghost export from S3
+        env:
+          S3_BUCKET: ${{ inputs.s3_bucket }}
+          S3_KEY: ${{ inputs.s3_key }}
         run: |
           mkdir -p "$RUNNER_TEMP/ghost-import"
-          aws s3 cp "s3://${{ inputs.s3_bucket }}/${{ inputs.s3_key }}" "$RUNNER_TEMP/ghost-import/ghost_export.json"
+          aws s3 cp "s3://${S3_BUCKET}/${S3_KEY}" "$RUNNER_TEMP/ghost-import/ghost_export.json"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
