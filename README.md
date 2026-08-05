@@ -31,9 +31,12 @@ For each environment:
   - `ROUTE53_ZONE_NAME` (Route 53 hosted zone, e.g. `abcdef.com`)
   - `GHOST_IMAGE` (Container image to use for Ghost, default `ghost:6-alpine`)
   - `TF_STATE_BUCKET` (S3 bucket for Terraform state)
+  - `GHOST_EXPORTS_BUCKET` (optional, S3 bucket for Ghost export files used by manual import workflow)
   - `TF_STATE_KEY` (optional, default `ghost/terraform.tfstate`)
 - GitHub repository secret (Settings → Secrets and variables → Actions → Secrets):
   - `DB_PASSWORD` (MySQL password used by both Ghost environments)
+  - `GHOST_ADMIN_EMAIL` (Ghost admin user email used by manual import workflow)
+  - `GHOST_ADMIN_PASSWORD` (Ghost admin user password used by manual import workflow)
 - GitHub environment variables for each environment (`test` and `prod`):
   - `SUBDOMAIN` (The subdomain to deploy the Ghost site to for this environment, e.g. `blog` deploys to `blog.abcdef.com`)
 
@@ -65,10 +68,36 @@ Workflow files:
 
 - `.github/workflows/pull-request.yml`
 - `.github/workflows/push.yml`
+- `.github/workflows/manual-ghost-import.yml`
 
 - Pull requests: `terraform fmt -check`, `terraform validate`, and `terraform plan` (plan requires `TF_STATE_BUCKET`)
 - Push to `main`: `terraform apply -auto-approve` (requires `TF_STATE_BUCKET`)
 - State is stored in S3 with S3-native locking (`use_lockfile=true`) to keep GitHub Actions deployments consistent across runs.
+
+## Manual Ghost Import from S3
+
+Use the manual workflow to import an existing Ghost export JSON into `test` or `prod` for recovery or test environment refreshes.
+
+Workflow:
+
+- `.github/workflows/manual-ghost-import.yml`
+
+How it works:
+
+1. Trigger the workflow manually from GitHub Actions.
+2. Provide:
+  - `environment` (`test` or `prod`)
+  - `s3_bucket` (bucket containing export file)
+  - `s3_key` (object key, for example `backups/ghost_export.json`)
+3. The workflow assumes your AWS role via OIDC, downloads the export JSON from S3, and runs:
+  - `scripts/import-ghost-export.sh`
+4. The script authenticates against Ghost Admin API and imports the JSON via `/ghost/api/admin/db/`.
+
+Notes:
+
+- The GitHub Actions role must have at least `s3:GetObject` on the export bucket.
+- If `GHOST_EXPORTS_BUCKET` is set, Terraform includes that bucket in the managed role policy.
+- `skip_tls_verify` exists only for temporary troubleshooting and should normally remain `false`.
 
 ## GitHub Actions Role Permissions
 

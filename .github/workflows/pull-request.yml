@@ -25,6 +25,7 @@ jobs:
         working-directory: terraform
     env:
       TF_VAR_aws_role_name: ${{ vars.AWS_ROLE_NAME }}
+      TF_VAR_ghost_exports_bucket: ${{ vars.GHOST_EXPORTS_BUCKET }}
       TF_VAR_tf_state_bucket: ${{ vars.TF_STATE_BUCKET }}
     outputs:
       ssm_tunnel_instance_profile: ${{ steps.plan-common.outputs.ssm_tunnel_instance_profile }}

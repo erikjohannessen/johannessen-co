@@ -13,3 +13,9 @@ variable "tf_state_bucket" {
   type        = string
 }
 
+variable "ghost_exports_bucket" {
+  description = "Optional S3 bucket name where Ghost export JSON files are stored for imports."
+  type        = string
+  default     = ""
+}
+

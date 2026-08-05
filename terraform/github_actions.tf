@@ -25,7 +25,7 @@ resource "aws_iam_role_policy" "github_actions" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
+    Statement = concat([
       {
         Effect = "Allow"
         Action = [
@@ -230,6 +230,18 @@ resource "aws_iam_role_policy" "github_actions" {
         Action   = ["sts:GetCallerIdentity"]
         Resource = "*"
       },
-    ]
+      ], var.ghost_exports_bucket != "" ? [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket",
+        ]
+        Resource = [
+          "arn:aws:s3:::${var.ghost_exports_bucket}",
+          "arn:aws:s3:::${var.ghost_exports_bucket}/*",
+        ]
+      }
+    ] : [])
   })
 }
