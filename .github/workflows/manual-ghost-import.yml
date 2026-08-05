@@ -63,7 +63,7 @@ jobs:
 
       - name: Download Ghost export from S3
         env:
-          S3_BUCKET: ${{ inputs.s3_bucket }}
+          S3_BUCKET: ${{ env.GHOST_EXPORTS_BUCKET }}
           S3_KEY: ${{ inputs.s3_key }}
         run: |
           mkdir -p "$RUNNER_TEMP/ghost-import"

@@ -1,18 +1,5 @@
 data "aws_caller_identity" "current" {}
 
-locals {
-  github_actions_s3_resources = concat(
-    [
-      "arn:aws:s3:::${var.tf_state_bucket}",
-      "arn:aws:s3:::${var.tf_state_bucket}/*",
-    ],
-    var.ghost_exports_bucket != "" ? [
-      "arn:aws:s3:::${var.ghost_exports_bucket}",
-      "arn:aws:s3:::${var.ghost_exports_bucket}/*",
-    ] : []
-  )
-}
-
 resource "aws_iam_openid_connect_provider" "github_actions" {
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
@@ -233,7 +220,21 @@ resource "aws_iam_role_policy" "github_actions" {
           "s3:ListBucket",
           "s3:PutObject",
         ]
-        Resource = local.github_actions_s3_resources
+        Resource = [
+          "arn:aws:s3:::${var.tf_state_bucket}",
+          "arn:aws:s3:::${var.tf_state_bucket}/*",
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket",
+        ]
+        Resource = var.ghost_exports_bucket != "" ? [
+          "arn:aws:s3:::${var.ghost_exports_bucket}",
+          "arn:aws:s3:::${var.ghost_exports_bucket}/*",
+        ] : []
       },
       {
         Effect   = "Allow"
