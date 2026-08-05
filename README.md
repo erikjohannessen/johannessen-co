@@ -73,6 +73,7 @@ Workflow files:
 - Pull requests: `terraform fmt -check`, `terraform validate`, and `terraform plan` (plan requires `TF_STATE_BUCKET`)
 - Push to `main`: `terraform apply -auto-approve` (requires `TF_STATE_BUCKET`)
 - State is stored in S3 with S3-native locking (`use_lockfile=true`) to keep GitHub Actions deployments consistent across runs.
+- Common Terraform now provisions SES (domain identity, DKIM, MAIL FROM, SMTP IAM credentials) once per account/region and injects SMTP settings into each Ghost environment at task startup.
 
 ## Manual Ghost Import from S3
 
@@ -136,6 +137,7 @@ If your state bucket uses a customer-managed KMS key, also include:
 ## Notes
 
 - Ghost is configured with `https://<domain>` and ALB redirects HTTP to HTTPS.
+- New AWS accounts begin in SES sandbox mode. While sandboxed, you can only send to verified recipient addresses until SES production access is granted.
 
 ## Connect to RDS via SSM
 

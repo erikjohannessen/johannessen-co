@@ -116,6 +116,15 @@ resource "aws_iam_role_policy" "github_actions" {
       {
         Effect = "Allow"
         Action = [
+          "iam:CreateAccessKey",
+          "iam:CreateUser",
+          "iam:DeleteAccessKey",
+          "iam:DeleteUser",
+          "iam:DeleteUserPolicy",
+          "iam:GetUser",
+          "iam:ListAccessKeys",
+          "iam:ListUserPolicies",
+          "iam:PutUserPolicy",
           "iam:AddRoleToInstanceProfile",
           "iam:AttachRolePolicy",
           "iam:CreateInstanceProfile",
@@ -146,6 +155,19 @@ resource "aws_iam_role_policy" "github_actions" {
           "iam:UntagInstanceProfile",
           "iam:UpdateAssumeRolePolicy",
           "iam:UpdateOpenIDConnectProviderThumbprint",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ses:DeleteIdentity",
+          "ses:GetIdentityDkimAttributes",
+          "ses:GetIdentityVerificationAttributes",
+          "ses:ListIdentities",
+          "ses:SetIdentityMailFromDomain",
+          "ses:VerifyDomainDkim",
+          "ses:VerifyDomainIdentity",
         ]
         Resource = "*"
       },

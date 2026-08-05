@@ -326,7 +326,14 @@ resource "aws_ecs_task_definition" "ghost" {
         { name = "database__connection__host", value = aws_db_instance.ghost.address },
         { name = "database__connection__user", value = "ghostuser" },
         { name = "database__connection__password", value = var.db_password },
-        { name = "database__connection__database", value = "ghost" }
+        { name = "database__connection__database", value = "ghost" },
+        { name = "mail__transport", value = "SMTP" },
+        { name = "mail__from", value = var.ses_mail_from },
+        { name = "mail__options__host", value = var.ses_smtp_host },
+        { name = "mail__options__port", value = "587" },
+        { name = "mail__options__secure", value = "false" },
+        { name = "mail__options__auth__user", value = var.ses_smtp_username },
+        { name = "mail__options__auth__pass", value = var.ses_smtp_password }
       ]
       logConfiguration = {
         logDriver = "awslogs"
