@@ -88,11 +88,15 @@ jobs:
 
       - name: Run Ghost import
         env:
-          GHOST_ADMIN_EMAIL: ${{ secrets.GHOST_ADMIN_EMAIL }}
+          GHOST_ADMIN_EMAIL: ${{ vars.GHOST_ADMIN_EMAIL }}
           GHOST_ADMIN_PASSWORD: ${{ secrets.GHOST_ADMIN_PASSWORD }}
         run: |
-          if [[ -z "$GHOST_ADMIN_EMAIL" || -z "$GHOST_ADMIN_PASSWORD" ]]; then
-            echo "Missing required secrets: GHOST_ADMIN_EMAIL and/or GHOST_ADMIN_PASSWORD" >&2
+          if [[ -z "$GHOST_ADMIN_EMAIL" ]]; then
+            echo "Missing required variable: GHOST_ADMIN_EMAIL" >&2
+            exit 1
+          fi
+          if [[ -z "$GHOST_ADMIN_PASSWORD" ]]; then
+            echo "Missing required secret: GHOST_ADMIN_PASSWORD" >&2
             exit 1
           fi
 

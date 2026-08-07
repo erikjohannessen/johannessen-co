@@ -29,13 +29,13 @@ For each environment:
   - `AWS_ROLE_NAME` (Role Name to assume for deployment via GitHub Actions, e.g. `GitHubActionsRole`)
   - `AWS_REGION` (e.g. `us-east-1`)
   - `ROUTE53_ZONE_NAME` (Route 53 hosted zone, e.g. `example.com`)
+  - `GHOST_ADMIN_EMAIL` (Ghost admin user email used by manual import workflow)
   - `GHOST_IMAGE` (Container image to use for Ghost, default `ghost:6-alpine`)
   - `TF_STATE_BUCKET` (S3 bucket for Terraform state)
   - `GHOST_EXPORTS_BUCKET` (optional, S3 bucket for Ghost export files used by manual import workflow)
   - `TF_STATE_KEY` (optional, default `ghost/terraform.tfstate`)
 - GitHub repository secret (Settings → Secrets and variables → Actions → Secrets):
   - `DB_PASSWORD` (MySQL password used by both Ghost environments)
-  - `GHOST_ADMIN_EMAIL` (Ghost admin user email used by manual import workflow)
   - `GHOST_ADMIN_PASSWORD` (Ghost admin user password used by manual import workflow)
 - GitHub environment variables for each environment (`test` and `prod`):
   - `SUBDOMAIN` (The subdomain to deploy the Ghost site to for this environment, e.g. `blog` deploys to `blog.example.com`)
