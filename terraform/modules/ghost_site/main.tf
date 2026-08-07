@@ -345,9 +345,10 @@ resource "aws_ecs_task_definition" "ghost" {
         { name = "database__connection__database", value = "ghost" },
         { name = "mail__transport", value = "SMTP" },
         { name = "mail__from", value = var.ses_mail_from },
+        { name = "mail__options__service", value = "SES" },
         { name = "mail__options__host", value = var.ses_smtp_host },
-        { name = "mail__options__port", value = "587" },
-        { name = "mail__options__secure", value = "false" },
+        { name = "mail__options__port", value = "465" },
+        { name = "mail__options__secure", value = "true" },
         { name = "mail__options__auth__user", value = var.ses_smtp_username },
       ]
       secrets = [
