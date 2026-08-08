@@ -239,8 +239,9 @@ resource "aws_route53_record" "ghost" {
 }
 
 resource "aws_acm_certificate" "ghost" {
-  domain_name       = local.domain_name
-  validation_method = "DNS"
+  domain_name               = local.domain_name
+  subject_alternative_names = var.environment == "prod" ? [var.route53_zone_name] : []
+  validation_method         = "DNS"
 
   lifecycle {
     create_before_destroy = true
@@ -329,6 +330,30 @@ resource "aws_lb_listener" "https" {
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.ghost.arn
+  }
+}
+
+# In production, redirect apex HTTPS requests to the canonical subdomain
+resource "aws_lb_listener_rule" "apex_redirect" {
+  count        = var.environment == "prod" ? 1 : 0
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 1
+
+  condition {
+    host_header {
+      values = [var.route53_zone_name]
+    }
+  }
+
+  action {
+    type = "redirect"
+
+    redirect {
+      host        = local.domain_name
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
   }
 }
 
