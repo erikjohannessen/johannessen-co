@@ -83,10 +83,13 @@ resource "aws_iam_user_policy" "ghost_ses_smtp" {
     Statement = [
       {
         Effect = "Allow"
-        Action = ["ses:SendRawEmail"]
-        Resource = [
-          aws_ses_domain_identity.ghost.arn,
+        Action = [
+          "ses:SendEmail",
+          "ses:SendRawEmail",
+          "ses:SendTemplatedEmail",
+          "ses:SendBulkTemplatedEmail"
         ]
+        Resource = "*"
       }
     ]
   })
