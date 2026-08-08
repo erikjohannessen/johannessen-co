@@ -269,6 +269,22 @@ resource "aws_acm_certificate_validation" "ghost" {
   validation_record_fqdns = [for record in aws_route53_record.ghost_cert_validation : record.fqdn]
 }
 
+# Create the Apex Alias Record
+resource "aws_route53_record" "apex_record" {
+  zone_id = data.aws_route53_zone.primary.zone_id
+  name    = data.aws_route53_zone.primary.name
+  type    = "A"
+
+  # Only create an apex record alias for Production
+  count = var.environment == "prod" ? 1 : 0
+
+  alias {
+    name                   = aws_route53_record.ghost.name
+    zone_id                = aws_route53_record.ghost.zone_id
+    evaluate_target_health = true
+  }
+}
+
 resource "aws_lb_target_group" "ghost" {
   name        = "${local.name_prefix}-tg"
   port        = 2368
@@ -338,6 +354,7 @@ resource "aws_ecs_task_definition" "ghost" {
       ]
       environment = [
         { name = "url", value = "https://${local.domain_name}" },
+        { name = "debug", value = "true" },
         { name = "database__client", value = "mysql" },
         { name = "database__connection__host", value = aws_db_instance.ghost.address },
         { name = "database__connection__user", value = "ghostuser" },
