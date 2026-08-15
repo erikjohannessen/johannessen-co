@@ -11,9 +11,12 @@ Usage:
     --admin-api-key '<id:secret>' [--insecure]
 
 Description:
-  Imports a Ghost export JSON file using the Ghost Admin API JWT authentication.
-  The admin API key should be an Admin API key in the format 'id:secret',
-  obtainable from Ghost Admin > Settings > Integrations > Add custom integration.
+  Imports a Ghost export JSON file using individual Ghost Admin API endpoints
+  (tags, posts, pages). These endpoints are available to custom integrations
+  and do not require a privileged staff account.
+
+  The admin API key should be in the format 'id:secret', obtainable from
+  Ghost Admin > Settings > Integrations > Add custom integration.
 USAGE
 }
 
@@ -47,6 +50,36 @@ make_ghost_jwt() {
   sig="$(printf '%s' "$signing_input" | openssl dgst -sha256 -mac HMAC -macopt "hexkey:${key_secret_hex}" -binary | base64 | tr -d '\n' | tr '+/' '-_' | tr -d '=')"
 
   printf '%s.%s.%s' "$header" "$payload" "$sig"
+}
+
+# POST a single resource to the Admin API.
+# Arguments: endpoint_path json_body resource_label
+post_resource() {
+  local endpoint="$1"
+  local body="$2"
+  local label="$3"
+
+  local response_file="$tmp_dir/response.json"
+  local status
+  status="$(
+    curl "${curl_flags[@]}" \
+      --output "$response_file" \
+      --write-out '%{http_code}' \
+      --header "Authorization: Ghost $token" \
+      --header 'Accept-Version: v6.0' \
+      --header 'Content-Type: application/json' \
+      --header "Origin: $ghost_url" \
+      --request POST \
+      --data "$body" \
+      "$api_base/$endpoint/"
+  )"
+
+  if [[ "$status" -lt 200 || "$status" -gt 299 ]]; then
+    echo "  Failed to import $label (HTTP $status)" >&2
+    cat "$response_file" >&2
+    echo >&2
+    return 1
+  fi
 }
 
 ghost_url=""
@@ -113,7 +146,6 @@ key_secret="${admin_api_key#*:}"
 token="$(make_ghost_jwt "$key_id" "$key_secret")"
 
 tmp_dir="$(mktemp -d)"
-import_response="$tmp_dir/import_response.json"
 
 cleanup() {
   rm -rf "$tmp_dir"
@@ -127,21 +159,49 @@ fi
 
 echo "Importing export file: $export_file"
 
-import_status="$(
-  curl "${curl_flags[@]}" \
-    --output "$import_response" \
-    --write-out '%{http_code}' \
-    --header "Authorization: Ghost $token" \
-    --header 'Accept-Version: v6.0' \
-    --header "Origin: $ghost_url" \
-    --request POST \
-    --form "importfile=@${export_file};type=application/json" \
-    "$api_base/db/"
-)"
+errors=0
 
-if [[ "$import_status" -lt 200 || "$import_status" -gt 299 ]]; then
-  echo "Ghost import failed with HTTP $import_status" >&2
-  cat "$import_response" >&2
+# Import tags
+tag_count="$(jq '[.db[0].data.tags // [] | .[] ] | length' "$export_file")"
+if [[ "$tag_count" -gt 0 ]]; then
+  echo "Importing $tag_count tag(s)..."
+  for i in $(seq 0 $(( tag_count - 1 ))); do
+    tag_json="$(jq -c "{tags: [.db[0].data.tags[$i]]}" "$export_file")"
+    tag_name="$(jq -r ".db[0].data.tags[$i].name" "$export_file")"
+    if ! post_resource "tags" "$tag_json" "tag '$tag_name'"; then
+      errors=$(( errors + 1 ))
+    fi
+  done
+fi
+
+# Import posts (includes drafts)
+post_count="$(jq '[.db[0].data.posts // [] | .[] | select(.type == "post" or .type == null)] | length' "$export_file")"
+if [[ "$post_count" -gt 0 ]]; then
+  echo "Importing $post_count post(s)..."
+  for i in $(seq 0 $(( post_count - 1 ))); do
+    post_json="$(jq -c "{posts: [([.db[0].data.posts // [] | .[] | select(.type == \"post\" or .type == null)][$i])]}" "$export_file")"
+    post_title="$(jq -r "([.db[0].data.posts // [] | .[] | select(.type == \"post\" or .type == null)][$i].title)" "$export_file")"
+    if ! post_resource "posts" "$post_json" "post '$post_title'"; then
+      errors=$(( errors + 1 ))
+    fi
+  done
+fi
+
+# Import pages
+page_count="$(jq '[.db[0].data.posts // [] | .[] | select(.type == "page")] | length' "$export_file")"
+if [[ "$page_count" -gt 0 ]]; then
+  echo "Importing $page_count page(s)..."
+  for i in $(seq 0 $(( page_count - 1 ))); do
+    page_json="$(jq -c "{pages: [([.db[0].data.posts // [] | .[] | select(.type == \"page\")][$i])]}" "$export_file")"
+    page_title="$(jq -r "([.db[0].data.posts // [] | .[] | select(.type == \"page\")][$i].title)" "$export_file")"
+    if ! post_resource "pages" "$page_json" "page '$page_title'"; then
+      errors=$(( errors + 1 ))
+    fi
+  done
+fi
+
+if [[ "$errors" -gt 0 ]]; then
+  echo "Ghost import completed with $errors error(s)." >&2
   exit 1
 fi
 
