@@ -99,7 +99,17 @@ stream_content_payloads() {
         slug: $post.slug,
         status: $post.status,
         visibility: $post.visibility,
-        featured: $post.featured,
+        featured: (
+          if ($post.featured | type) == "boolean" then
+            $post.featured
+          elif ($post.featured | type) == "number" then
+            ($post.featured != 0)
+          elif ($post.featured | type) == "string" then
+            (($post.featured | ascii_downcase) == "true" or $post.featured == "1")
+          else
+            null
+          end
+        ),
         published_at: $post.published_at,
         custom_excerpt: $post.custom_excerpt,
         excerpt: $post.excerpt,
