@@ -103,7 +103,7 @@ The import script and workflow authenticate using a Ghost Admin API key, which i
    - In your GitHub repository, go to **Settings → Secrets and variables → Actions → Secrets**.
    - Click **New repository secret**, name it `GHOST_ADMIN_API_KEY`, and paste the `id:secret` value.
 
-> For additional context on Ghost custom integrations, see the [Ghost Admin API documentation](https://ghost.org/docs/admin-api/).
+> For more detail on creating and managing custom integrations in Ghost, see [Add a new custom integration](https://ghost.org/integrations/custom-integrations/#add-a-new-custom-integration).
 
 ## GitHub Actions Role Permissions
 
