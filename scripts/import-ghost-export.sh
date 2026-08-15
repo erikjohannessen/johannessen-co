@@ -36,7 +36,7 @@ make_ghost_jwt() {
 
   local now
   now="$(date +%s)"
-  local exp=$(( now + 300 ))
+  local exp=$(( now + 3600 ))
 
   local header
   header="$(printf '{"alg":"HS256","typ":"JWT","kid":"%s"}' "$key_id" | base64 | tr -d '\n' | tr '+/' '-_' | tr -d '=')"
@@ -162,42 +162,45 @@ echo "Importing export file: $export_file"
 errors=0
 
 # Import tags
-tag_count="$(jq '[.db[0].data.tags // [] | .[] ] | length' "$export_file")"
-if [[ "$tag_count" -gt 0 ]]; then
-  echo "Importing $tag_count tag(s)..."
-  for i in $(seq 0 $(( tag_count - 1 ))); do
-    tag_json="$(jq -c "{tags: [.db[0].data.tags[$i]]}" "$export_file")"
-    tag_name="$(jq -r ".db[0].data.tags[$i].name" "$export_file")"
-    if ! post_resource "tags" "$tag_json" "tag '$tag_name'"; then
-      errors=$(( errors + 1 ))
-    fi
-  done
+echo "Importing tags..."
+tag_errors=0
+while IFS= read -r tag_json; do
+  tag_name="$(printf '%s' "$tag_json" | jq -r '.name')"
+  body="{\"tags\":[$tag_json]}"
+  if ! post_resource "tags" "$body" "tag '$tag_name'"; then
+    tag_errors=$(( tag_errors + 1 ))
+  fi
+done < <(jq -c '.db[0].data.tags // [] | .[]' "$export_file")
+if [[ "$tag_errors" -gt 0 ]]; then
+  errors=$(( errors + tag_errors ))
 fi
 
 # Import posts (includes drafts)
-post_count="$(jq '[.db[0].data.posts // [] | .[] | select(.type == "post" or .type == null)] | length' "$export_file")"
-if [[ "$post_count" -gt 0 ]]; then
-  echo "Importing $post_count post(s)..."
-  for i in $(seq 0 $(( post_count - 1 ))); do
-    post_json="$(jq -c "{posts: [([.db[0].data.posts // [] | .[] | select(.type == \"post\" or .type == null)][$i])]}" "$export_file")"
-    post_title="$(jq -r "([.db[0].data.posts // [] | .[] | select(.type == \"post\" or .type == null)][$i].title)" "$export_file")"
-    if ! post_resource "posts" "$post_json" "post '$post_title'"; then
-      errors=$(( errors + 1 ))
-    fi
-  done
+echo "Importing posts..."
+post_errors=0
+while IFS= read -r post_json; do
+  post_title="$(printf '%s' "$post_json" | jq -r '.title')"
+  body="{\"posts\":[$post_json]}"
+  if ! post_resource "posts" "$body" "post '$post_title'"; then
+    post_errors=$(( post_errors + 1 ))
+  fi
+done < <(jq -c '.db[0].data.posts // [] | .[] | select(.type == "post" or .type == null)' "$export_file")
+if [[ "$post_errors" -gt 0 ]]; then
+  errors=$(( errors + post_errors ))
 fi
 
 # Import pages
-page_count="$(jq '[.db[0].data.posts // [] | .[] | select(.type == "page")] | length' "$export_file")"
-if [[ "$page_count" -gt 0 ]]; then
-  echo "Importing $page_count page(s)..."
-  for i in $(seq 0 $(( page_count - 1 ))); do
-    page_json="$(jq -c "{pages: [([.db[0].data.posts // [] | .[] | select(.type == \"page\")][$i])]}" "$export_file")"
-    page_title="$(jq -r "([.db[0].data.posts // [] | .[] | select(.type == \"page\")][$i].title)" "$export_file")"
-    if ! post_resource "pages" "$page_json" "page '$page_title'"; then
-      errors=$(( errors + 1 ))
-    fi
-  done
+echo "Importing pages..."
+page_errors=0
+while IFS= read -r page_json; do
+  page_title="$(printf '%s' "$page_json" | jq -r '.title')"
+  body="{\"pages\":[$page_json]}"
+  if ! post_resource "pages" "$body" "page '$page_title'"; then
+    page_errors=$(( page_errors + 1 ))
+  fi
+done < <(jq -c '.db[0].data.posts // [] | .[] | select(.type == "page")' "$export_file")
+if [[ "$page_errors" -gt 0 ]]; then
+  errors=$(( errors + page_errors ))
 fi
 
 if [[ "$errors" -gt 0 ]]; then
