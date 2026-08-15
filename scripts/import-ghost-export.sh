@@ -36,7 +36,7 @@ make_ghost_jwt() {
 
   local now
   now="$(date +%s)"
-  local exp=$(( now + 3600 ))
+  local exp=$(( now + 300 ))
 
   local header
   header="$(printf '{"alg":"HS256","typ":"JWT","kid":"%s"}' "$key_id" | base64 | tr -d '\n' | tr '+/' '-_' | tr -d '=')"
@@ -58,6 +58,8 @@ post_resource() {
   local endpoint="$1"
   local body="$2"
   local label="$3"
+  local token
+  token="$(make_ghost_jwt "$key_id" "$key_secret")"
 
   local response_file="$tmp_dir/response.json"
   local status
@@ -186,8 +188,6 @@ api_base="$ghost_url/ghost/api/admin"
 
 key_id="${admin_api_key%%:*}"
 key_secret="${admin_api_key#*:}"
-
-token="$(make_ghost_jwt "$key_id" "$key_secret")"
 
 tmp_dir="$(mktemp -d)"
 
