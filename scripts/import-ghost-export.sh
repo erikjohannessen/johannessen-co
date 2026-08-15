@@ -61,6 +61,8 @@ post_resource() {
   local token
   token="$(make_ghost_jwt "$key_id" "$key_secret")"
 
+  echo "  Attempting to import $label with data: $body"
+
   local response_file="$tmp_dir/response.json"
   local status
   status="$(
@@ -134,7 +136,7 @@ stream_content_payloads() {
           | {email: .email}
         ]
       }
-    | with_entries(select(.value != null))
+    | with_entries(select(.value != null and .value != []))
   ' "$export_file"
 }
 
