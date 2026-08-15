@@ -23,6 +23,10 @@ on:
         required: false
         default: false
         type: boolean
+      admin_api_key:
+        description: Ghost Admin API key (id:secret). If omitted, falls back to the GHOST_ADMIN_API_KEY repository secret.
+        required: false
+        type: string
 
 permissions:
   id-token: write
@@ -88,15 +92,10 @@ jobs:
 
       - name: Run Ghost import
         env:
-          GHOST_ADMIN_EMAIL: ${{ vars.GHOST_ADMIN_EMAIL }}
-          GHOST_ADMIN_PASSWORD: ${{ secrets.GHOST_ADMIN_PASSWORD }}
+          GHOST_ADMIN_API_KEY: ${{ inputs.admin_api_key || secrets.GHOST_ADMIN_API_KEY }}
         run: |
-          if [[ -z "$GHOST_ADMIN_EMAIL" ]]; then
-            echo "Missing required variable: GHOST_ADMIN_EMAIL" >&2
-            exit 1
-          fi
-          if [[ -z "$GHOST_ADMIN_PASSWORD" ]]; then
-            echo "Missing required secret: GHOST_ADMIN_PASSWORD" >&2
+          if [[ -z "$GHOST_ADMIN_API_KEY" ]]; then
+            echo "Missing Ghost Admin API key: provide it via the admin_api_key input or the GHOST_ADMIN_API_KEY repository secret." >&2
             exit 1
           fi
 
@@ -105,8 +104,7 @@ jobs:
           script_args=(
             --ghost-url "${{ steps.resolve-url.outputs.ghost_url }}"
             --export-file "$RUNNER_TEMP/ghost-import/ghost_export.json"
-            --admin-email "$GHOST_ADMIN_EMAIL"
-            --admin-password "$GHOST_ADMIN_PASSWORD"
+            --admin-api-key "$GHOST_ADMIN_API_KEY"
           )
 
           if [[ "${{ inputs.skip_tls_verify }}" == "true" ]]; then
