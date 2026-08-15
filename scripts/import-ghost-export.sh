@@ -134,7 +134,6 @@ if [[ "$admin_api_key" != *:* ]]; then
 fi
 
 require_command curl
-require_command jq
 require_command openssl
 
 ghost_url="${ghost_url%/}"
