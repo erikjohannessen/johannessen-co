@@ -8,11 +8,12 @@ Usage:
   import-ghost-export.sh \
     --ghost-url https://blog.example.com \
     --export-file /path/to/ghost_export.json \
-    --admin-email admin@example.com \
-    --admin-password '<password>' [--insecure]
+    --admin-api-key '<id:secret>' [--insecure]
 
 Description:
-  Imports a Ghost export JSON file using the Ghost Admin API session flow.
+  Imports a Ghost export JSON file using the Ghost Admin API JWT authentication.
+  The admin API key should be an Admin API key in the format 'id:secret',
+  obtainable from Ghost Admin > Settings > Integrations > Add custom integration.
 USAGE
 }
 
@@ -24,10 +25,33 @@ require_command() {
   fi
 }
 
+# Build a Ghost Admin API JWT token from an 'id:secret' key.
+# Ghost uses a non-standard JWT: HS256, kid=id, iat/exp claims only.
+make_ghost_jwt() {
+  local key_id="$1"
+  local key_secret_hex="$2"
+
+  local now
+  now="$(date +%s)"
+  local exp=$(( now + 300 ))
+
+  local header
+  header="$(printf '{"alg":"HS256","typ":"JWT","kid":"%s"}' "$key_id" | base64 | tr -d '\n' | tr '+/' '-_' | tr -d '=')"
+  local payload
+  payload="$(printf '{"iat":%d,"exp":%d,"aud":"/admin/"}' "$now" "$exp" | base64 | tr -d '\n' | tr '+/' '-_' | tr -d '=')"
+
+  local signing_input="${header}.${payload}"
+
+  # Convert hex secret to binary for HMAC-SHA256
+  local sig
+  sig="$(printf '%s' "$signing_input" | openssl dgst -sha256 -mac HMAC -macopt "hexkey:${key_secret_hex}" -binary | base64 | tr -d '\n' | tr '+/' '-_' | tr -d '=')"
+
+  printf '%s.%s.%s' "$header" "$payload" "$sig"
+}
+
 ghost_url=""
 export_file=""
-admin_email=""
-admin_password=""
+admin_api_key=""
 insecure="false"
 
 while [[ $# -gt 0 ]]; do
@@ -40,12 +64,8 @@ while [[ $# -gt 0 ]]; do
       export_file="$2"
       shift 2
       ;;
-    --admin-email)
-      admin_email="$2"
-      shift 2
-      ;;
-    --admin-password)
-      admin_password="$2"
+    --admin-api-key)
+      admin_api_key="$2"
       shift 2
       ;;
     --insecure)
@@ -64,7 +84,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "$ghost_url" || -z "$export_file" || -z "$admin_email" || -z "$admin_password" ]]; then
+if [[ -z "$ghost_url" || -z "$export_file" || -z "$admin_api_key" ]]; then
   echo "Missing required arguments." >&2
   usage
   exit 1
@@ -75,15 +95,24 @@ if [[ ! -f "$export_file" ]]; then
   exit 1
 fi
 
+if [[ "$admin_api_key" != *:* ]]; then
+  echo "Invalid --admin-api-key format; expected 'id:secret'" >&2
+  exit 1
+fi
+
 require_command curl
 require_command jq
+require_command openssl
 
 ghost_url="${ghost_url%/}"
 api_base="$ghost_url/ghost/api/admin"
 
+key_id="${admin_api_key%%:*}"
+key_secret="${admin_api_key#*:}"
+
+token="$(make_ghost_jwt "$key_id" "$key_secret")"
+
 tmp_dir="$(mktemp -d)"
-cookie_jar="$tmp_dir/cookies.txt"
-login_response="$tmp_dir/login_response.json"
 import_response="$tmp_dir/import_response.json"
 
 cleanup() {
@@ -96,40 +125,15 @@ if [[ "$insecure" == "true" ]]; then
   curl_flags+=(--insecure)
 fi
 
-echo "Logging into Ghost Admin API at $ghost_url"
-
-login_payload="$(jq -n --arg username "$admin_email" --arg password "$admin_password" '{username: $username, password: $password}')"
-
-login_status="$(
-  curl "${curl_flags[@]}" \
-    --output "$login_response" \
-    --write-out '%{http_code}' \
-    --cookie-jar "$cookie_jar" \
-    --header 'Content-Type: application/json' \
-    --header 'Accept-Version: v6.0' \
-    --header "Origin: $ghost_url" \
-    --header "Referer: $ghost_url/ghost/" \
-    --request POST \
-    --data "$login_payload" \
-    "$api_base/session/"
-)"
-
-if [[ "$login_status" -lt 200 || "$login_status" -gt 299 ]]; then
-  echo "Ghost Admin login failed with HTTP $login_status" >&2
-  cat "$login_response" >&2
-  exit 1
-fi
-
 echo "Importing export file: $export_file"
 
 import_status="$(
   curl "${curl_flags[@]}" \
     --output "$import_response" \
     --write-out '%{http_code}' \
-    --cookie "$cookie_jar" \
+    --header "Authorization: Ghost $token" \
     --header 'Accept-Version: v6.0' \
     --header "Origin: $ghost_url" \
-    --header "Referer: $ghost_url/ghost/" \
     --request POST \
     --form "importfile=@${export_file};type=application/json" \
     "$api_base/db/"
