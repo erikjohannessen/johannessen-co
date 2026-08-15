@@ -179,6 +179,7 @@ fi
 
 require_command curl
 require_command openssl
+require_command jq
 
 ghost_url="${ghost_url%/}"
 api_base="$ghost_url/ghost/api/admin"
