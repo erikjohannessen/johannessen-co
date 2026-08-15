@@ -29,14 +29,13 @@ For each environment:
   - `AWS_ROLE_NAME` (Role Name to assume for deployment via GitHub Actions, e.g. `GitHubActionsRole`)
   - `AWS_REGION` (e.g. `us-east-1`)
   - `ROUTE53_ZONE_NAME` (Route 53 hosted zone, e.g. `example.com`)
-  - `GHOST_ADMIN_EMAIL` (Ghost admin user email used by manual import workflow)
   - `GHOST_IMAGE` (Container image to use for Ghost, default `ghost:6-alpine`)
   - `TF_STATE_BUCKET` (S3 bucket for Terraform state)
   - `GHOST_EXPORTS_BUCKET` (optional, S3 bucket for Ghost export files used by manual import workflow)
   - `TF_STATE_KEY` (optional, default `ghost/terraform.tfstate`)
 - GitHub repository secret (Settings → Secrets and variables → Actions → Secrets):
   - `DB_PASSWORD` (MySQL password used by both Ghost environments)
-  - `GHOST_ADMIN_PASSWORD` (Ghost admin user password used by manual import workflow)
+  - `GHOST_ADMIN_API_KEY` (Ghost Admin API key used by manual import workflow — see [Generating a Ghost Admin API key](#generating-a-ghost-admin-api-key))
 - GitHub environment variables for each environment (`test` and `prod`):
   - `SUBDOMAIN` (The subdomain to deploy the Ghost site to for this environment, e.g. `blog` deploys to `blog.example.com`)
 
@@ -68,15 +67,43 @@ How it works:
   - `environment` (`test` or `prod`)
   - `s3_bucket` (bucket containing export file)
   - `s3_key` (object key, for example `backups/ghost_export.json`)
+  - `admin_api_key` (optional — overrides the `GHOST_ADMIN_API_KEY` secret for this run)
 3. The workflow assumes your AWS role via OIDC, downloads the export JSON from S3, and runs:
   - `scripts/import-ghost-export.sh`
-4. The script authenticates against Ghost Admin API and imports the JSON via `/ghost/api/admin/db/`.
+4. The script authenticates against the Ghost Admin API using a JWT signed with your Admin API key and imports the JSON via `/ghost/api/admin/db/`.
 
 Notes:
 
 - The GitHub Actions role must have at least `s3:GetObject` on the export bucket.
 - If `GHOST_EXPORTS_BUCKET` is set, Terraform includes that bucket in the managed role policy.
 - `skip_tls_verify` exists only for temporary troubleshooting and should normally remain `false`.
+- An Admin API key must be available, either as the `GHOST_ADMIN_API_KEY` repository secret or supplied directly as the `admin_api_key` workflow input. The workflow fails if neither is set.
+
+## Generating a Ghost Admin API key
+
+The import script and workflow authenticate using a Ghost Admin API key, which is a credential tied to a custom integration rather than an interactive staff account. This avoids weakening staff login security.
+
+### Steps
+
+1. **Log in to Ghost Admin** for the target environment (e.g. `https://blog.example.com/ghost`).
+
+2. **Open Settings → Integrations.**
+   - In the left-hand sidebar, click **Settings**.
+   - Under the **Advanced** section, click **Integrations**.
+
+3. **Create a new custom integration.**
+   - Click **+ Add custom integration**.
+   - Enter a descriptive name (e.g. `GitHub Actions Import`) and click **Add**.
+
+4. **Copy the Admin API key.**
+   - On the integration detail page you'll see an **Admin API key** field containing a value in the format `<id>:<secret>` (e.g. `6745abc...def:a3b9...1f`).
+   - Copy this value. The secret portion is shown only once; you can regenerate it from the same page if needed.
+
+5. **Store the key as a GitHub secret.**
+   - In your GitHub repository, go to **Settings → Secrets and variables → Actions → Secrets**.
+   - Click **New repository secret**, name it `GHOST_ADMIN_API_KEY`, and paste the `id:secret` value.
+
+> For additional context on Ghost custom integrations, see the [Ghost Admin API documentation](https://ghost.org/docs/admin-api/).
 
 ## GitHub Actions Role Permissions
 
