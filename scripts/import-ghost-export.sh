@@ -82,6 +82,50 @@ post_resource() {
   fi
 }
 
+stream_content_payloads() {
+  local content_type="$1"
+  jq -c --arg content_type "$content_type" '
+    .db[0].data as $data
+    | ($data.tags // [] | map({key: (.id | tostring), value: .}) | from_entries) as $tags_by_id
+    | ($data.authors // [] | map({key: (.id | tostring), value: .}) | from_entries) as $authors_by_id
+    | ($data.posts // [])
+    | map(select((.type // "post") == $content_type))
+    | .[]
+    | . as $post
+    | {
+        title: $post.title,
+        slug: $post.slug,
+        status: $post.status,
+        visibility: $post.visibility,
+        featured: $post.featured,
+        published_at: $post.published_at,
+        custom_excerpt: $post.custom_excerpt,
+        excerpt: $post.excerpt,
+        feature_image: $post.feature_image,
+        lexical: $post.lexical,
+        mobiledoc: $post.mobiledoc,
+        html: $post.html,
+        tags: [
+          ($data.posts_tags // [])[]
+          | select((.post_id | tostring) == ($post.id | tostring))
+          | (.tag_id | tostring) as $tag_id
+          | $tags_by_id[$tag_id]
+          | select(. != null)
+          | {name: .name}
+        ],
+        authors: [
+          ($data.posts_authors // [])[]
+          | select((.post_id | tostring) == ($post.id | tostring))
+          | (.author_id | tostring) as $author_id
+          | $authors_by_id[$author_id]
+          | select(. != null)
+          | {email: .email}
+        ]
+      }
+    | with_entries(select(.value != null))
+  ' "$export_file"
+}
+
 ghost_url=""
 export_file=""
 admin_api_key=""
@@ -183,7 +227,7 @@ while IFS= read -r post_json; do
   if ! post_resource "posts" "$body" "post '$post_title'"; then
     post_errors=$(( post_errors + 1 ))
   fi
-done < <(jq -c '.db[0].data.posts // [] | .[] | select(.type == "post" or .type == null)' "$export_file")
+done < <(stream_content_payloads "post")
 if [[ "$post_errors" -gt 0 ]]; then
   errors=$(( errors + post_errors ))
 fi
@@ -197,7 +241,7 @@ while IFS= read -r page_json; do
   if ! post_resource "pages" "$body" "page '$page_title'"; then
     page_errors=$(( page_errors + 1 ))
   fi
-done < <(jq -c '.db[0].data.posts // [] | .[] | select(.type == "page")' "$export_file")
+done < <(stream_content_payloads "page")
 if [[ "$page_errors" -gt 0 ]]; then
   errors=$(( errors + page_errors ))
 fi
