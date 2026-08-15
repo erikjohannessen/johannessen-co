@@ -392,6 +392,7 @@ resource "aws_ecs_task_definition" "ghost" {
         { name = "mail__options__port", value = "465" },
         { name = "mail__options__secure", value = "true" },
         { name = "mail__options__auth__user", value = var.ses_smtp_username },
+        { name = "security__staffDeviceVerification", value = "false" },
       ]
       secrets = [
         { name = "mail__options__auth__pass", valueFrom = var.ses_smtp_secret_arn },
